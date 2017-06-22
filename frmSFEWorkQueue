@@ -1,0 +1,449 @@
+'old
+'----------M1 Code----------
+DebugMode = False
+ 
+Function cmdClockoutPartial_Click()
+	Controls("cmdClockoutPartial").Enabled = False
+	ProcessClockOut False
+	Controls("cmdClockoutPartial").Enabled = True
+End Function
+ 
+Function cmdClockoutComplete_Click()
+	Controls("cmdClockoutComplete").Enabled = False
+	ProcessClockOut True
+	Controls("cmdClockoutComplete").Enabled = True
+End Function
+ 
+Function ProcessClockOut(Complete) 
+	Set rsTimecardLines = CreateObject("ADODB.RecordSet")
+	rsTimecardLines.Open _
+		"	SELECT lmlTimecardID, lmlTimecardLineID, jmoOperationQuantity - jmoQuantityComplete AS QuantityToComplete " & _
+		"	FROM   TimecardLines WITH (NOLOCK) " & _
+		"	       INNER JOIN JobOperations " & _
+		"	               ON lmlJobID = jmoJobID " & _
+		"	                  AND lmlJobAssemblyID = jmoJobAssemblyID " & _
+		"	                  AND lmlJobOperationID = jmoJobOperationID " & _
+		"	WHERE  lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+		"	       AND lmlActive <> 0 " & _
+		"	       AND lmlTimecardType = 1", _
+		Connection, adOpenStatic, adLockReadOnly, adCmdText
+	
+	Const WORKCODE_PARTIAL = 1, WORKCODE_COMPLETE = 2
+	Do While Not rsTimecardLines.EOF
+		If Complete Then
+			Quantity = rsTimecardLines.Fields("QuantityToComplete").Value
+			CompletionType = WORKCODE_COMPLETE
+		Else
+			Quantity = 0
+			CompletionType = WORKCODE_PARTIAL
+		End If
+		
+		StopProduction rsTimecardLines.Fields("lmlTimecardID").Value, _
+                               rsTimecardLines.Fields("lmlTimecardLineID").Value, _
+                               Quantity, 0, CompletionType
+		rsTimecardLines.MoveNext
+	Loop
+	rsTimecardLines.Close
+	'Controls("cmdOK").DoClick
+End Function
+
+Function cmdProjectAreaJobs_Click()
+ 	Controls("txtProjectAreaString").SetFocusEx
+End Function
+
+
+Function cmdExecuteProjectString_Click()
+	Controls("cmdExecuteProjectString").Enabled = False
+	ArrayProjectAreaString = Split(cstr(Controls("txtProjectAreaString").Value),",")
+	
+	Controls("txtProjectAreaString").Value = ""
+	
+	If UBound(ArrayProjectAreaString) > 0 Then
+		
+		Const COMMNAND = 0, PROJECT_ID = 1, PROJECT_AREA_ID = 2, PROCESSS_ID = 3
+		Const START_INDIRECT = "V", START_JOB = "W", END_OPERATION_PARTIAL = "X", END_OPERATION_COMPLETE = "Y", END_JOBS = "Z"
+		Select Case ArrayProjectAreaString(COMMNAND)
+			Case START_INDIRECT
+				'msgbox "start indirect " & ArrayProjectAreaString(PROCESSS_ID)
+				StartIndirect (ArrayProjectAreaString(PROCESSS_ID))
+			Case START_JOB
+				DebugLog "Starting Job: " & Join(ArrayProjectAreaString, "|"), DebugMode
+				StartAllProjectAreaJobs ArrayProjectAreaString(PROJECT_ID), _
+                                                        ArrayProjectAreaString(PROJECT_AREA_ID), _
+                                                        ArrayProjectAreaString(PROCESSS_ID)                   
+			Case END_OPERATION_PARTIAL
+				DebugLog "Partial Quantity: " & Join(ArrayProjectAreaString, "|"), DebugMode
+				ProcessOperation ArrayProjectAreaString(PROJECT_ID), _
+                                                 ArrayProjectAreaString(PROJECT_AREA_ID), _
+                                                 ArrayProjectAreaString(PROCESSS_ID), _
+                                                 False
+			Case END_OPERATION_COMPLETE
+				DebugLog "Complete Quantity: " & Join(ArrayProjectAreaString, "|"), DebugMode
+				ProcessOperation ArrayProjectAreaString(PROJECT_ID), _
+                                                 ArrayProjectAreaString(PROJECT_AREA_ID), _
+                                                 ArrayProjectAreaString(PROCESSS_ID), _
+                                                 True
+			Case END_JOBS
+				ProcessClockout True
+			Case Else
+				msgbox "nothing"
+'				StartAllProjectAreaJobs "16293", _
+'			                                "3", _
+'			                                "397"
+		End Select
+	End If
+	Controls("cmdExecuteProjectString").Enabled = True
+End Function
+
+Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID) 
+	DebugLog "Start StartAllProjectAreaJobs: " & Join(Array(projectID, projectAreaID, processID), "|"), DebugMode
+	
+	Set rsJobOperations = CreateObject("ADODB.RecordSet")
+	rsJobOperations.Open _
+		"  SELECT jmoJobID, jmoJobAssemblyID, jmoJobOperationID, " & _
+		"         jmoWorkCenterID, jmoProcessID " & _
+		"  FROM   JobOperations " & _
+		"	       INNER JOIN Jobs " & _
+		"	               ON jmoJobID = jmpJobID " & _
+		"	WHERE  jmoProcessID = " & App.AddQuotes(processID) & _
+		"         AND jmoProductionComplete = 0 " & _
+		"         AND jmpProjectID = " & App.AddQuotes(projectID) & _
+		"             AND jmpProjectAreaID = " & App.AddQuotes(projectAreaID), _
+		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	Set rsTimeCards = CreateObject("ADODB.RecordSet")
+	rsTimeCards.Open _
+		"	SELECT * " & _
+		"	FROM   TimeCards " & _
+		"	WHERE  lmpEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+		"	       AND lmpActive <> 0", _
+		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	If Not rsTimeCards.EOF Then
+		EliminateAlreadyLoggedInOperations rsJobOperations, rsTimeCards.Fields("lmpTimecardID").Value
+		
+		Set rsTimecardLines = CreateObject("ADODB.RecordSet")
+		rsTimecardLines.Open _
+			" SELECT * " & _
+			" FROM   TimecardLines " & _
+			" WHERE  0 = 1", _
+			Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+		
+		Set rsShiftandLines = CreateObject("ADODB.RecordSet")
+		rsShiftandLines.Open _
+			"	SELECT lmsRoundJobsWithinShift, lmsRoundJobsOutsideOfShift, lmsRoundTo, lmsRoundClockInDirection, " & _
+			"	       lmtStartTime, lmtEndTime " & _
+			"	FROM   Shifts " & _
+			"	       LEFT JOIN ShiftBreaks " & _
+			"	              ON lmsShiftID = lmtShiftID " & _
+			"	WHERE  lmsShiftID = " & App.AddQuotes(rsTimeCards.Fields("lmpShiftID").Value) & _
+			"	       AND lmtDay = " & App.ConvertNumberToSQL(WeekDay(Date(), vbMonday)), _
+			Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+		
+		UpdateActualWithRound = Connection.Execute( _
+                                                 "	SELECT xapLMUpdateActualWithRounded " & _
+                                                 "	FROM   ProductionProperties "_
+		                                          ).Fields("xapLMUpdateActualWithRounded").Value
+		
+		
+		NextAvailableTimecardLineID = Connection.Execute( _
+                                                 "	SELECT IsNull(Max(lmlTimecardLineID), 0) + 1 as NextNo " & _
+                                                 "	FROM   TimecardLines " & _
+                                                 "	WHERE  lmlTimecardID = " & App.ConvertNumberToSQL(rsTimeCards.Fields("lmpTimecardID").Value) _
+                                                                ).Fields("NextNo").Value
+		StartTime = Now()
+		
+		Do While Not rsJobOperations.EOF
+			StartDirect rsTimecardLines, rsTimeCards, rsShiftandLines, NextAvailableTimecardLineID, _
+	                rsJobOperations.Fields("jmoJobID").Value, rsJobOperations.Fields("jmoJobAssemblyID").Value, _
+	                rsJobOperations.Fields("jmoJobOperationID").Value, rsJobOperations.Fields("jmoWorkCenterID").Value, _
+	                rsJobOperations.Fields("jmoProcessID").Value, cBool(UpdateActualWithRound), StartTime
+			NextAvailableTimecardLineID = cInt(NextAvailableTimecardLineID) + 1
+			rsJobOperations.MoveNext()
+		Loop
+		rsTimecardLines.UpdateBatch
+	End If
+	
+	rsTimeCards.Close
+	rsJobOperations.Close
+	
+	DebugLog "End StartAllProjectAreaJobs: " & Join(Array(projectID, projectAreaID, processID), "|"), DebugMode
+	'Controls("cmdOK").DoClick
+End Sub
+
+Public Function EliminateAlreadyLoggedInOperations(ByRef rsStartingJobOperations, ByVal TimecardID)
+	If rsStartingJobOperations.RecordCount > 0 Then
+		rsStartingJobOperations.MoveFirst
+	End If
+	
+	Set rsTimeCardLines = CreateObject("ADODB.RecordSet")
+	rsTimeCardLines.Open _
+		"	SELECT lmlJobID, lmlJobAssemblyID, lmlJobOperationID " & _
+		"	FROM   TimecardLines " & _
+		"	WHERE  lmlTimecardID = " & App.ConvertNumberToSQL(TimecardID) & _
+		"	       AND lmlActive <> 0", _
+		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	Do While Not rsStartingJobOperations.EOF
+		rsTimeCardLines.Filter = _
+		          "lmlJobID = " & App.AddQuotes(rsStartingJobOperations.Fields("jmoJobID").Value) & _
+		          " AND lmlJobAssemblyID = " & App.ConvertNumberToSQL(rsStartingJobOperations.Fields("jmoJobAssemblyID").Value) & _
+		          " AND lmlJobOperationID = " & App.ConvertNumberToSQL(rsStartingJobOperations.Fields("jmoJobOperationID").Value)
+		
+		If Not rsTimeCardLines.EOF Then
+			rsStartingJobOperations.Delete
+		End If
+		
+		rsStartingJobOperations.MoveNext
+	Loop
+	
+	If rsStartingJobOperations.RecordCount > 0 Then
+		rsStartingJobOperations.MoveFirst
+	End If
+End Function
+
+Public Function StartDirect(ByRef rsTimecardLines, ByRef rsTimecards, ByRef rsShiftandLines, _
+	                          ByVal TimecardLineID, ByVal JobID, ByVal JobAssemblyID, _
+	                          ByVal JobOperationID, ByVal WorkcenterID, ByVal ProcessID, _
+	                          ByVal UpdateActualWithRound, ByVal StartTime)
+	rsTimecardLines.AddNew
+	rsTimecardLines.Fields("lmlTimecardID").value = rsTimecards.Fields("lmpTimecardID").Value
+	rsTimecardLines.Fields("lmlTimecardLineID").value = TimecardLineID
+	rsTimecardLines.Fields("lmlTimecardType").value = 1
+	rsTimecardLines.Fields("lmlJobID").value = LEFT(JobID, 20)
+	rsTimecardLines.Fields("lmlJobAssemblyID").value = JobAssemblyID
+	rsTimecardLines.Fields("lmlJobOperationID").value = JobOperationID
+	rsTimecardLines.Fields("lmlWorkCenterID").value = LEFT(WorkcenterID, 5)
+	rsTimecardLines.Fields("lmlProcessID").value = LEFT(ProcessID, 5)
+	rsTimecardLines.Fields("lmlEmployeeID").value = LEFT(rsTimecards.Fields("lmpEmployeeID").Value, 10)
+	rsTimecardLines.Fields("lmlShiftID").value = rsTimecards.Fields("lmpShiftID").Value
+	rsTimecardLines.Fields("lmlWorkType").value = 2
+	rsTimecardLines.Fields("lmlSource").value = 2
+	rsTimecardLines.Fields("lmlActive").value = -1
+	rsTimecardLines.Fields("lmlActualStartTime").value = StartTime
+	
+	Const vbShortDate = 2
+	RoundedTime = cDate(FormatDateTime(rsTimecardLines.Fields("lmlActualStartTime").value, vbShortDate))
+	RoundedTime = DateAdd("h", Hour(rsTimecardLines.Fields("lmlActualStartTime").value), RoundedTime)
+	
+	Const ROUND_NEAREST = "N", ROUND_UP = "U", ROUND_DOWN = "D"
+	Select Case rsShiftandLines.Fields("lmsRoundClockInDirection").Value 
+		Case ROUND_NEAREST
+			RoundedTime = DateAdd("n", _
+		                        Round(Minute(rsTimecardLines.Fields("lmlActualStartTime").value) / _
+		                              cInt(rsShiftandLines.Fields("lmsRoundTo").Value)) _
+		                          * cInt(rsShiftandLines.Fields("lmsRoundTo").Value), _
+		                        RoundedTime)
+		Case ROUND_DOWN
+			RoundedTime = DateAdd("n", _
+		                        Int(Minute(rsTimecardLines.Fields("lmlActualStartTime").value) / _
+		                              cInt(rsShiftandLines.Fields("lmsRoundTo").Value)) _
+		                          * cInt(rsShiftandLines.Fields("lmsRoundTo").Value), _
+		                        RoundedTime)
+		Case ROUND_UP
+			RoundedTime = DateAdd("n", _
+		                        Round(Minute(rsTimecardLines.Fields("lmlActualStartTime").value) / _
+		                              cInt(rsShiftandLines.Fields("lmsRoundTo").Value) + 0.4) _
+		                          * cInt(rsShiftandLines.Fields("lmsRoundTo").Value), _
+		                        RoundedTime)
+		Case Else
+			RoundedTime = DateAdd("n", RoundedTime, Minute(rsTimecardLines.Fields("lmlActualStartTime").value))
+	End Select
+	
+	
+	If WithinShiftRounding(rsTimecardLines.Fields("lmlActualStartTime").value, _
+		                     rsShiftandLines.Fields("lmsRoundJobsWithinShift").Value, _
+		                     cDbl(rsShiftandLines.Fields("lmtStartTime").Value), _
+		                     cDbl(rsShiftandLines.Fields("lmtEndTime").Value)) Then
+		rsTimecardLines.Fields("lmlRoundedStartTime").value = RoundedTime
+	ElseIf OutsideShiftRounding(rsTimecardLines.Fields("lmlActualStartTime").value, _
+		                          rsShiftandLines.Fields("lmsRoundJobsOutsideOfShift").Value, _
+		                          cDbl(rsShiftandLines.Fields("lmtStartTime").Value), _
+		                          cDbl(rsShiftandLines.Fields("lmtEndTime").Value)) Then
+		rsTimecardLines.Fields("lmlRoundedStartTime").value = RoundedTime
+	Else
+		rsTimecardLines.Fields("lmlRoundedStartTime").value = rsTimecardLines.Fields("lmlActualStartTime").value
+	End If
+		
+	If UpdateActualWithRound Then
+		rsTimecardLines.Fields("lmlActualStartTime").value = rsTimecardLines.Fields("lmlRoundedStartTime").value
+	End If
+End Function
+
+Function WithinShiftRounding(ByVal TransactionDate, ByVal IsWithinShiftRounding, ByVal ShiftStartTime, ByVal ShiftEndTime)
+	Result = False
+	
+	If cBool(IsWithinShiftRounding) Then
+		If Hour(TransactionDate) > Int(ShiftStartTime) _
+			 OR (Hour(TransactionDate) = Int(ShiftStartTime) _
+			     AND Minute(TransactionDate) >= ((ShiftStartTime - Int(ShiftStartTime)) * 100)) Then
+			If Hour(TransactionDate) < Int(ShiftEndTime) _
+				 OR (Hour(TransactionDate) = Int(ShiftEndTime) _
+				     AND Minute(TransactionDate) < ((ShiftEndTime - Int(ShiftEndTime)) * 100)) Then
+				Result = True
+			End If
+		End If
+	End If
+	WithinShiftRounding = Result
+End Function
+
+Function OutsideShiftRounding(ByVal TransactionDate, ByVal IsOutsideShiftRounding, ByVal ShiftStartTime, ByVal ShiftEndTime)
+	Result = False
+	
+	If cBool(IsOutsideShiftRounding) Then
+		If Hour(TransactionDate) < Int(ShiftStartTime) _
+			 OR (Hour(TransactionDate) = Int(ShiftStartTime) _
+			     AND Minute(TransactionDate) < ((ShiftStartTime - Int(ShiftStartTime)) * 100)) Then
+			Result = True
+		ElseIf Hour(TransactionDate) > Int(ShiftEndTime) _
+			 OR (Hour(TransactionDate) = Int(ShiftEndTime) _
+			     AND Minute(TransactionDate) > ((ShiftEndTime - Int(ShiftEndTime)) * 100)) Then
+			Result = True
+		End If
+	End If
+	OutsideShiftRounding = Result
+End Function
+
+Sub ProcessOperation(projectID, projectAreaID, processID, Complete)
+	DebugLog "Start ProcessOperation: " & Join(Array(projectID, projectAreaID, processID), "|"), DebugMode
+	nGoodQty = 0
+	nScrapQty = 0
+	
+	Set rsTimecardLines = CreateObject("ADODB.RecordSet")
+	rsTimecardLines.Open _
+		"	SELECT lmlTimecardID, lmlTimecardLineID, jmoOperationQuantity - jmoQuantityComplete AS QuantityToComplete " & _
+		"	FROM   Jobs " & _
+		"	       LEFT JOIN  JobOperations " & _
+		"	               ON jmpJobID = jmoJobID " & _
+		"	       INNER JOIN TimecardLines WITH (NOLOCK) " & _
+		"	               ON jmoJobID = lmlJobID " & _
+		"	                  AND jmoJobAssemblyID = lmlJobAssemblyID " & _
+		"	                  AND jmoJobOperationID = lmlJobOperationID " & _
+		"	WHERE  lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+		"	       AND lmlActive <> 0 " & _
+		"	       AND lmlTimecardType = 1" & _
+		"	       AND jmoProductionComplete = 0 " & _
+		"	       AND jmpProjectID = " & App.AddQuotes(projectID) & _
+		"	       AND jmpProjectAreaID = " & App.AddQuotes(projectAreaID) & _
+		"	       AND jmoProcessID = " & App.AddQuotes(processID), _
+		Connection, adOpenStatic, adLockReadOnly, adCmdText
+	
+	Const WORKCODE_PARTIAL = 1, WORKCODE_COMPLETE = 2
+	Do While Not rsTimecardLines.EOF
+		If Complete then
+			CompletionType = WORKCODE_COMPLETE
+		Else
+			CompletionType = WORKCODE_PARTIAL
+		End If
+			StopProduction rsTimecardLines.Fields("lmlTimecardID").Value, _
+                                       rsTimecardLines.Fields("lmlTimecardLineID").Value, _
+                                       rsTimeCardLines.Fields("QuantityToComplete").Value, _
+                                       nScrapQty, _
+                                       CompletionType
+		
+		rsTimecardLines.MoveNext
+	Loop
+	rsTimecardLines.Close
+	DebugLog "End ProcessOperation: " & Join(Array(projectID, projectAreaID, processID), "|"), DebugMode
+	'Controls("cmdOK").DoClick
+End Sub
+
+Function StopProduction(ByVal TimecardID, ByVal TimecardLineID, ByVal Quantity, ByVal ScrapQuantity, ByVal CompletionType)
+	Const PAUSE_SECONDS = .5
+	ReturnValue = False 
+	ReturnValue = App.TimecardFunctions.StopProductionJob(TimecardID, _
+                                                              TimecardLineID, _
+                                                              Quantity, ScrapQuantity, _
+                                                              CompletionType, "", "", "")
+	If cbool(ReturnValue) = False Then
+		DebugLog "StopProductionJob returned false " & Join(Array(rsTimecardLines.Fields("lmlTimecardID").Value, _
+		                                                         rsTimecardLines.Fields("lmlTimecardLineID").Value)), true
+	End If
+		
+	'Half a second Pause before moving on.
+	'StartOfTimer = Timer
+	'Do While Timer - StartOfTimer <= PAUSE_SECONDS	
+	'loop
+End Function
+
+Function DebugLog(Message, Record) 
+	If Record Then
+		Const ForReading = 1, ForWriting = 2, ForAppending = 8 
+		Set filesys = CreateObject("Scripting.FileSystemObject")
+		Set filetxt = filesys.OpenTextFile(App.ServerLocation & "DebugLog.txt", ForAppending, True) 
+		filetxt.WriteLine(Now() & " - " & app.UserID & " : " & Message)
+		filetxt.Close 
+	End If
+End Function
+'----------M1 Code----------
+
+Function cmdEndAll_Click()
+
+	set WshShell = CreateObject("WScript.Shell")
+	
+	const DIRECT = 1, INDIRECT = 2
+	ActiveDirectLines = DoesTimecardLineExist (DIRECT)
+	ActiveIndirectLines = DoesTimecardLineExist (INDIRECT)
+	
+	if ActiveDirectLines then
+		'msgbox "End Direct"
+		Controls("cmdClockoutPartial").Enabled = False
+		ProcessClockOut False
+		Controls("cmdClockoutPartial").Enabled = True	
+		WshShell.SendKeys ("%S")
+		WshShell.SendKeys ("%C")
+	end if
+	
+	if ActiveIndirectLines then
+		'msgbox "end Indirect"
+		WshShell.SendKeys ("%E")
+		WshShell.SendKeys ("%O")
+	end if
+				
+	'set WshShell = CreateObject("WScript.Shell")
+	'WshShell.SendKeys ("%S%C%E%K")
+	'alt S then alt C to open the job window then close it immediately. This refreshes job list,
+	'alt N to end production operations with no quantity using custom button
+	'alt E to end remaining indirect
+	'alt K to close end indirect window
+End Function
+		
+function StartIndirect (IndirectCode)
+	'msgbox "starting direct " & IndirectCode
+	set WshShell = CreateObject("WScript.Shell")
+	const DELAY = 0
+	msgbox "send alt I"
+	WshShell.SendKeys ("%I")
+	sleep(DELAY)
+	msgbox "send alt D"
+	WshShell.SendKeys ("%D")
+	sleep(DELAY)
+	msgbox "send alt Code"
+	WshShell.SendKeys (IndirectCode)
+	sleep(DELAY)
+	msgbox "send alt W"
+	WshShell.SendKeys ("%W")
+	sleep(DELAY)
+	msgbox "send alt O"
+	WshShell.SendKeys ("%O")
+	sleep(DELAY)
+	'WshShell.SendKeys ("%O")
+	Controls("cmdOK").DoClick
+	
+	'WshShell.SendKeys ("%I%D" & IndirectCode & "%W%O")
+	
+end function
+		
+function DoesTimecardLineExist (TimeCardType)
+	DoesTimecardLineExist = not(Connection.Execute("	SELECT  1" & _
+							          	 											"	FROM    timecardlines " & _
+	                                           		"	WHERE	 lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+																						 		"	       AND lmlActive <> 0 " & _
+																						 		"	       AND lmlTimecardType =" & TimecardType).EOF)	
+end function
+		
+function sleep (SleepTime)
+	StartOfTimer = Timer
+	Do While Timer - StartOfTimer <= SleepTime	
+	loop
+end function
