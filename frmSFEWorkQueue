@@ -43,7 +43,7 @@ Function ProcessClockOut(Complete)
 		rsTimecardLines.MoveNext
 	Loop
 	rsTimecardLines.Close
-	'Controls("cmdOK").DoClick
+	Controls("cmdOK").DoClick
 End Function
 
 Function cmdProjectAreaJobs_Click()
@@ -60,12 +60,18 @@ Function cmdExecuteProjectString_Click()
 	If UBound(ArrayProjectAreaString) > 0 Then
 		
 		Const COMMNAND = 0, PROJECT_ID = 1, PROJECT_AREA_ID = 2, PROCESSS_ID = 3
-		Const START_INDIRECT = "V", START_JOB = "W", END_OPERATION_PARTIAL = "X", END_OPERATION_COMPLETE = "Y", END_JOBS = "Z"
+		Const START_INDIRECT = "T", END_INDIRECT = "U", START_JOB = "W", END_OPERATION_PARTIAL = "X", END_OPERATION_COMPLETE = "Y", END_JOBS = "Z"
 		Select Case ArrayProjectAreaString(COMMNAND)
 			Case START_INDIRECT
-				'msgbox "start indirect " & ArrayProjectAreaString(PROCESSS_ID)
+				EndAllTimecardLines
+				DebugLog "Starting Indirect: " & Join (ArrayProjectAreaString, "|"), DebugMode
 				StartIndirect (ArrayProjectAreaString(PROCESSS_ID))
+			case END_INDIRECT	
+				'msgbox "END_INDIRECT"
+			DebugLog "Ending Indirect: " & Join (ArrayProjectAreaString, "|"), DebugMode
+				EndIndirect
 			Case START_JOB
+				EndAllTimecardLines
 				DebugLog "Starting Job: " & Join(ArrayProjectAreaString, "|"), DebugMode
 				StartAllProjectAreaJobs ArrayProjectAreaString(PROJECT_ID), _
                                                         ArrayProjectAreaString(PROJECT_AREA_ID), _
@@ -85,13 +91,14 @@ Function cmdExecuteProjectString_Click()
 			Case END_JOBS
 				ProcessClockout True
 			Case Else
-				msgbox "nothing"
+				msgbox "Error in project string"
 '				StartAllProjectAreaJobs "16293", _
 '			                                "3", _
 '			                                "397"
 		End Select
 	End If
 	Controls("cmdExecuteProjectString").Enabled = True
+	Controls("cmdOK").DoClick
 End Function
 
 Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID) 
@@ -109,6 +116,11 @@ Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID)
 		"         AND jmpProjectID = " & App.AddQuotes(projectID) & _
 		"             AND jmpProjectAreaID = " & App.AddQuotes(projectAreaID), _
 		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+
+	if rsJobOperations.EOF then
+		msgbox "No operations for project. Please see Shop Foreman."
+		exit sub
+	end if	
 	
 	Set rsTimeCards = CreateObject("ADODB.RecordSet")
 	rsTimeCards.Open _
@@ -144,7 +156,6 @@ Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID)
                                                  "	FROM   ProductionProperties "_
 		                                          ).Fields("xapLMUpdateActualWithRounded").Value
 		
-		
 		NextAvailableTimecardLineID = Connection.Execute( _
                                                  "	SELECT IsNull(Max(lmlTimecardLineID), 0) + 1 as NextNo " & _
                                                  "	FROM   TimecardLines " & _
@@ -153,6 +164,7 @@ Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID)
 		StartTime = Now()
 		
 		Do While Not rsJobOperations.EOF
+			
 			StartDirect rsTimecardLines, rsTimeCards, rsShiftandLines, NextAvailableTimecardLineID, _
 	                rsJobOperations.Fields("jmoJobID").Value, rsJobOperations.Fields("jmoJobAssemblyID").Value, _
 	                rsJobOperations.Fields("jmoJobOperationID").Value, rsJobOperations.Fields("jmoWorkCenterID").Value, _
@@ -248,7 +260,6 @@ Public Function StartDirect(ByRef rsTimecardLines, ByRef rsTimecards, ByRef rsSh
 		Case Else
 			RoundedTime = DateAdd("n", RoundedTime, Minute(rsTimecardLines.Fields("lmlActualStartTime").value))
 	End Select
-	
 	
 	If WithinShiftRounding(rsTimecardLines.Fields("lmlActualStartTime").value, _
 		                     rsShiftandLines.Fields("lmsRoundJobsWithinShift").Value, _
@@ -376,63 +387,13 @@ Function DebugLog(Message, Record)
 End Function
 '----------M1 Code----------
 
-Function cmdEndAll_Click()
-
-	set WshShell = CreateObject("WScript.Shell")
-	
-	const DIRECT = 1, INDIRECT = 2
-	ActiveDirectLines = DoesTimecardLineExist (DIRECT)
-	ActiveIndirectLines = DoesTimecardLineExist (INDIRECT)
-	
-	if ActiveDirectLines then
-		'msgbox "End Direct"
-		Controls("cmdClockoutPartial").Enabled = False
-		ProcessClockOut False
-		Controls("cmdClockoutPartial").Enabled = True	
-		WshShell.SendKeys ("%S")
-		WshShell.SendKeys ("%C")
-	end if
-	
-	if ActiveIndirectLines then
-		'msgbox "end Indirect"
-		WshShell.SendKeys ("%E")
-		WshShell.SendKeys ("%O")
-	end if
-				
-	'set WshShell = CreateObject("WScript.Shell")
-	'WshShell.SendKeys ("%S%C%E%K")
-	'alt S then alt C to open the job window then close it immediately. This refreshes job list,
-	'alt N to end production operations with no quantity using custom button
-	'alt E to end remaining indirect
-	'alt K to close end indirect window
+Function EndAllTimecardLines()
+	Controls("cmdClockoutPartial").Enabled = False
+	EndIndirect
+	ProcessClockOut False
+	Controls("cmdClockoutPartial").Enabled = True
 End Function
-		
-function StartIndirect (IndirectCode)
-	'msgbox "starting direct " & IndirectCode
-	set WshShell = CreateObject("WScript.Shell")
-	const DELAY = 0
-	msgbox "send alt I"
-	WshShell.SendKeys ("%I")
-	sleep(DELAY)
-	msgbox "send alt D"
-	WshShell.SendKeys ("%D")
-	sleep(DELAY)
-	msgbox "send alt Code"
-	WshShell.SendKeys (IndirectCode)
-	sleep(DELAY)
-	msgbox "send alt W"
-	WshShell.SendKeys ("%W")
-	sleep(DELAY)
-	msgbox "send alt O"
-	WshShell.SendKeys ("%O")
-	sleep(DELAY)
-	'WshShell.SendKeys ("%O")
-	Controls("cmdOK").DoClick
-	
-	'WshShell.SendKeys ("%I%D" & IndirectCode & "%W%O")
-	
-end function
-		
+
 function DoesTimecardLineExist (TimeCardType)
 	DoesTimecardLineExist = not(Connection.Execute("	SELECT  1" & _
 							          	 											"	FROM    timecardlines " & _
@@ -440,9 +401,72 @@ function DoesTimecardLineExist (TimeCardType)
 																						 		"	       AND lmlActive <> 0 " & _
 																						 		"	       AND lmlTimecardType =" & TimecardType).EOF)	
 end function
-		
-function sleep (SleepTime)
-	StartOfTimer = Timer
-	Do While Timer - StartOfTimer <= SleepTime	
+
+function EndIndirect ()
+	
+'SFE prevents multiple indirects at one time, but just in case load all active Indirect timecardlines into a recordset
+	Set rsTimecardLines = CreateObject("ADODB.RecordSet")
+	rsTimecardLines.Open _
+		"	SELECT lmlTimecardID, lmlTimecardLineID " & _
+		"	FROM	 TimecardLines WITH (NOLOCK) " & _
+		"	WHERE  lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+		"	       AND lmlActive <> 0 " & _
+		"	       AND lmlTimecardType = 2", _
+		Connection, adOpenStatic, adLockReadOnly, adCmdText
+	
+	'EndTime = now()
+	
+	do while not rsTimecardLines.EOF
+		returnVal = App.TimecardFunctions.StopIndirectJob (rsTimecardLines.Fields("lmlTimecardID").value, _	
+																					 							rsTimecardLines.Fields("lmlTimecardLineID").value, _
+																					 							"", FALSE,now())
+		rsTimecardLines.MoveNext
 	loop
 end function
+		
+function StartIndirect (IndirectID)
+
+	InactiveIndirectCode = Connection.Execute ( _
+																					"	Select 	*	" & _
+																					"	FROM		 IndirectLaborCodes " & _
+																					"	WHERE		lmiIndirectLaborID = " & App.AddQuotes(IndirectID) & _
+																					"			 and lmiInactive <> -1 ").EOF
+	
+	if InactiveIndirectCode then
+		msgbox "Indirect code not found", vbInformation + vbOKOnly, "Error"
+		exit function
+	end if
+	
+	AlreadyActiveIndirect = not Connection.Execute ( _
+																								"	SELECT lmlTimecardID, lmlTimecardLineID " & _
+																								"	FROM	 TimecardLines WITH (NOLOCK) " & _
+																								"	WHERE  lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+																								"	       AND lmlActive <> 0 " & _
+																								"	       AND lmlTimecardType = 2").EOF		
+	if AlreadyActiveIndirect then
+		msgbox "You may only clock in on one indirect code at a time.", vbInformation + vbOKOnly, "Error"
+		exit function
+	end if
+	
+	'get current timecardID
+	CurrentTimecardID = Connection.Execute ( _
+																						"	select 	lmptimecardid " & _
+																						"	from 		timecards " & _
+																						"	where		lmpEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+																						"				and lmpActive <> 0 ").fields("LMPTIMECARDID").value
+	
+	'get employee's home department
+	HomeDepartment = Connection.Execute ( _
+																				"	SELECT 	lmeHomeProductionDepartmentID " & _
+																				"	FROM 		employees " & _		
+																				"	WHERE		lmeEmployeeID = " & App.AddQuotes(App.UserEmployeeID) _
+																			).Fields ("lmeHomeProductionDepartmentID").value
+	
+	returnvalue = app.TimecardFunctions.StartIndirect (CurrentTimecardID, HomeDepartment, IndirectID, now())
+	
+	'Controls("cmdOK").DoClick
+end function	
+
+Function cmdEndAll_Click()
+	EndAllTimecardLines
+End Function
