@@ -1,0 +1,39 @@
+includescript "vbsCabinetVisionImport"
+
+Function cmdImport_Click()
+	vbsCabinetVisionImport.OpenDatabases
+	vbsCabinetVisionImport.ImportUnitOfIssue
+	vbsCabinetVisionImport.ImportMaterials
+	vbsCabinetVisionImport.CloseDatabases
+End Function
+
+Function ucmPartIDTextBox_UserChange()
+	setM1PartShortDescription trim(controls("ucmPartIDTextBox").value), trim(controls("ucmPartRevisionIDTextBox").value)
+End Function
+
+Function ucmPartRevisionIDTextBox_UserChange()
+	setM1PartShortDescription trim(controls("ucmPartIDTextBox").value), trim(controls("ucmPartRevisionIDTextBox").value)
+End Function
+
+function setM1PartShortDescription (PartID, PartRevisionID) 
+	M1PartShortDescription = ""
+	if PartID <> "" then	
+		M1PartShortDescription = Connection.Execute ( _
+																					"	SELECT 	imrShortDescription " & _
+																					"	FROM 		PartRevisions " & _		
+																					"	WHERE		imrPartID = " & App.AddQuotes(PartID) & _
+																					"			 and imrPartRevisionID = " & app.AddQuotes(PartRevisionID) _
+																				).Fields("imrShortDescription").value
+	end if
+	
+	controls("txtPartShortDescription").value = M1PartShortDescription
+
+end function
+
+Function M1DataControl_ViewInitialize()
+	setM1PartShortDescription trim(controls("ucmPartIDTextBox").value), trim(controls("ucmPartRevisionIDTextBox").value)
+End Function
+
+Function M1DataControl_RecordChange()
+	setM1PartShortDescription trim(controls("ucmPartIDTextBox").value), trim(controls("ucmPartRevisionIDTextBox").value)
+End Function
