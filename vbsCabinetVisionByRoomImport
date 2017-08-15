@@ -24,6 +24,7 @@ Private ACCESSORIES_DATABASE
 Private REPORT_DATABASE
 Private DEBUG_MODE
 Private BUILD_MODE
+Private VERBOSE
 
 Private IMPORT_TO_ROOM
 Private IMPORT_TO_CABINET
@@ -35,6 +36,7 @@ Public Sub Class_Initialize
 	
 	BUILD_MODE = False
 	DEBUG_MODE = False
+	VERBOSE  = False
 	
 	ErrorMessages = Array()
 	
@@ -529,30 +531,44 @@ Private Function ImportRoomID(QuoteID, QuoteLineID, RoomID, ImportType)
 
 	Select Case ImportType
 		CASE IMPORT_TO_ROOM
-			QuoteAssemblyID = 0
-			CabinetID = 0
-			Set rsQuoteOperations = GetQuoteOperations() 'ok as is
-			ImportQuoteOperations rsQuoteOperations, QuoteID, QuoteLineID, _
-					                      QuoteAssemblyID, RoomID, CabinetID, ImportType
-			rsQuoteOperations.UpdateBatch
 			
-			Set rsQuoteMaterials = GetQuoteMaterials()
-			ImportQuoteMaterials rsQuoteMaterials, QuoteID, QuoteLineID, _
-					                     QuoteAssemblyID, RoomID, CabinetID, ImportType
-			rsQuoteMaterials.UpdateBatch
-			'ImportAccessories QuoteID, QuoteLineID, 0, RoomID	
-'			ImportMouldingAssemblies QuoteID, QuoteLineID, 0, RoomID
-'			ImportMouldingMaterials QuoteID, QuoteLineID, 0, RoomID
+			QuoteAssemblyID = 0
+			QuoteMaterialID = 1
+			
+			ImportRoom QuoteID, QuoteLineID, QuoteAssemblyID, QuoteMaterialID, RoomID, ImportType
+		
+			ImportAccessories QuoteID, QuoteLineID, QuoteAssemblyID, QuoteMaterialID, RoomID	
+		
+			QuoteAssemblyID = 1
+			ImportMouldingAssemblies QuoteID, QuoteLineID, QuoteAssemblyID, RoomID
+			ImportMouldingMaterials QuoteID, QuoteLineID, 0, RoomID
 '			ImportTopsTable QuoteID, QuoteLineID, 0, RoomID
+		
 		CASE IMPORT_TO_CABINET
 '			import into cabinet assemblies
 			QuoteAssemblyID = 1
+			QuoteMaterialID = 1
+		
 			ImportCabinets QuoteID, QuoteLineID, QuoteAssemblyID, RoomID, ImportType
-'			'ImportAccessories QuoteID, QuoteLineID, QuoteAssemblyID, RoomID	
-'			ImportMouldingAssemblies QuoteID, QuoteLineID, QuoteAssemblyID, RoomID
-'			ImportMouldingMaterials QuoteID, QuoteLineID, 0, RoomID
+			ImportAccessories QuoteID, QuoteLineID, QuoteAssemblyID, QuoteMaterialID, RoomID	
+			ImportMouldingAssemblies QuoteID, QuoteLineID, QuoteAssemblyID, RoomID
+			ImportMouldingMaterials QuoteID, QuoteLineID, 0, RoomID
 '			ImportTopsTable QuoteID, QuoteLineID, 0, RoomID
 	End Select
+End Function
+		
+Private Function ImportRoom (ByVal QuoteID, ByVal QuoteLineID, ByRef QuoteAssemblyID, ByRef QuoteMaterialID, ByVal RoomID, ByVal ImportType)
+	Set rsQuoteOperations = GetQuoteOperations()
+	Set rsQuoteMaterials = GetQuoteMaterials()
+	
+	ImportQuoteOperations rsQuoteOperations, QuoteID, QuoteLineID, _
+					              QuoteAssemblyID, RoomID, 0, ImportType
+	rsQuoteOperations.UpdateBatch
+	
+	ImportQuoteMaterials rsQuoteMaterials, QuoteID, QuoteLineID, _
+					              QuoteAssemblyID, QuoteMaterialID, RoomID, 0, ImportType
+	rsQuoteMaterials.UpdateBatch
+	
 End Function
 		
 Private Function ImportCabinets(ByVal QuoteID, ByVal QuoteLineID, ByRef QuoteAssemblyID, ByVal RoomID, ByVal ImportType)
@@ -563,7 +579,12 @@ Private Function ImportCabinets(ByVal QuoteID, ByVal QuoteLineID, ByRef QuoteAss
 	Set rsQuoteOperations = GetQuoteOperations()
 	Set rsQuoteMaterials = GetQuoteMaterials()
 	
+	
+	
 	Do While Not rsCabinets.EOF
+		
+		QuoteMaterialID = 1
+		
 		CabinetPartID = CabinetBuilderPartIDTranslation(rsCabinets.Fields("CvcAsmID").Value, CABINET_TYPE)
 		If Trim(CabinetPartID(0)) <> "" Then
 			CreateQuoteAssemblies rsQuoteAssemblies, QuoteID, QuoteLineID, _
@@ -581,7 +602,7 @@ Private Function ImportCabinets(ByVal QuoteID, ByVal QuoteLineID, ByRef QuoteAss
 			rsQuoteOperations.UpdateBatch
 			
 			ImportQuoteMaterials rsQuoteMaterials, QuoteID, QuoteLineID, _
-			                     QuoteAssemblyID, RoomID, rsCabinets.Fields("Cabinet ID").Value, ImportType
+			                     QuoteAssemblyID, QuoteMaterialID, RoomID, rsCabinets.Fields("Cabinet ID").Value, ImportType
 			
 			rsQuoteMaterials.UpdateBatch
 			QuoteAssemblyID = QuoteAssemblyID + 1
@@ -670,10 +691,18 @@ Private Function DoesWorkcenterIDExist(WorkcenterID)
 End Function
 
 Private Function ImportQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByVal QuoteLineID, _
-	                                    ByVal QuoteAssemblyID, ByVal RoomID, ByVal CabinetID, ImportType)
-	QuoteMaterialID = 1
+	                                    ByVal QuoteAssemblyID, ByRef QuoteMaterialID, ByVal RoomID, _
+																			ByVal CabinetID, ImportType)
+	'QuoteMaterialID = 1
 	Set rsUnitOfIssue = GetUnitOfIssues()
 
+	if VERBOSE then
+		msgbox "ImportQuoteMaterials" & vbnewline & _
+					 "QuoteID: " & QuoteID & vbnewline & _
+					 "QuoteLineID: " & QuoteLineID & vbnewline & _
+					 "QuoteAssemblyID: " & QuoteAssemblyID & vbnewline & _
+					 "QuoteMaterialID: " & QuoteMaterialID & vbnewline
+	end if
 	ImportMaterialsTable rsQuoteMaterials, rsUnitOfIssue, QuoteID, _
 											 QuoteLineID, QuoteAssemblyID, QuoteMaterialID, _
 											 RoomID, CabinetID, ImportType
@@ -683,9 +712,9 @@ Private Function ImportQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
 	ImportDrawersTable rsQuoteMaterials, rsUnitOfIssue, QuoteID, _
 										 QuoteLineID, QuoteAssemblyID, QuoteMaterialID, _
 									 	RoomID, CabinetID, ImportType
-	'ImportRollOutTable rsQuoteMaterials, rsUnitOfIssue, QuoteID, _
-	'									 QuoteLineID, QuoteAssemblyID, QuoteMaterialID, _
-	'								 	RoomID, CabinetID
+	ImportRollOutTable rsQuoteMaterials, rsUnitOfIssue, QuoteID, _
+										 QuoteLineID, QuoteAssemblyID, QuoteMaterialID, _
+									 	RoomID, CabinetID, ImportType
 End Function
 
 Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssue, ByVal QuoteID, _
@@ -695,6 +724,14 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 	
 	Const MATERIAL_TYPE = 1
 	Do While Not rsCabinetMaterials.EOF
+		if VERBOSE then	
+				msgbox "ImportMaterialsTable loop " & vbnewline & _
+					 "QuoteID: " & QuoteID & vbnewline & _
+					 "QuoteLineID: " & QuoteLineID & vbnewline & _
+					 "QuoteAssemblyID: " & QuoteAssemblyID & vbnewline & _
+					 "QuoteMaterialID: " & QuoteMaterialID & vbnewline
+		end if
+			
 		PartKeys = CabinetBuilderPartIDTranslation(rsCabinetMaterials.Fields("Material ID").Value, MATERIAL_TYPE)
 		
 		If Trim(PartKeys(0)) <> "" then
@@ -714,7 +751,6 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 				                                         QuoteAssemblyID, QuoteMaterialID, PartKeys(0), _
 				                                         PartKeys(1), QuantityPerAssembly, "", LongDescription, _
 				                                         True, 0, True) Then
-
 				QuoteMaterialID = QuoteMaterialID + 1
 			End If
 		Else
@@ -855,7 +891,8 @@ Private Function GetAssemblyDrawers(RoomID, CabinetID, ImportType)
 							          	 									  			 "	LEFT JOIN parts ON (drawers.[drawer id] = parts.[drawer id] AND parts.buyout = TRUE)) " & _
 							          	 									  			 "	LEFT JOIN ( " & _
 																											"							select left(note,255) as DrawerCode " & _
-																											"										,ParentID from notes " & _
+																											"										,ParentID " & _
+																											"							from notes " & _
 																											"							where ParentType=6 " & _
 																											"								and Prompt = " & app.addquotes("_DWRCode") & _
 																											"						) NoteTable " & _ 
@@ -886,14 +923,15 @@ End Function
 
 Private Function ImportRollOutTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssue, ByVal QuoteID, _
 	                                	ByVal QuoteLineID, ByVal QuoteAssemblyID, ByRef QuoteMaterialID, _
-	                                	ByVal CabinetID)
-	Set rsRollouts = GetAssemblyRollOuts(CabinetID)
+	                                	ByVal RoomID, ByVal CabinetID, ByVal ImportType)
+	Set rsRollouts = GetAssemblyRollOuts(RoomID, CabinetID, ImportType)
 	Const ROLLOUT_TYPE = 5
 	
 	Do While Not rsRollouts.EOF
 		GenerateQuoteMaterials rsQuoteMaterials, rsRollouts.Fields("RollOut Num").Value, ROLLOUT_TYPE, "RollOut ID", _
 	                         rsRollouts.Fields("Cost").Value, rsRollouts, CreateQuoteMaterialRollOutLongDescriptionMap, _
-		                       QuoteID, QuoteLineID, QuoteAssemblyID, QuoteMaterialID, False
+		                       QuoteID, QuoteLineID, QuoteAssemblyID, QuoteMaterialID, _
+													 rsRollouts.fields("QuantityPerAssembly").value, False
 		rsRollouts.MoveNext
 	Loop
 End Function
@@ -908,27 +946,61 @@ Private Function CreateQuoteMaterialRollOutLongDescriptionMap()
 	CreateQuoteMaterialRollOutLongDescriptionMap = DescriptionMap
 End Function
 
-Private Function GetAssemblyRollOuts(CabinetID)
-	Set GetAssemblyRollOuts = ReportDBConnection.Execute("	SELECT  rollouts.* " & _
-							              									  			 "	FROM    RollOuts " & _
-																											 "					LEFT JOIN parts " & _
-																											 "									ON (rollouts.[rollout id] = parts.[rollout id] " & _
-																											 "										AND parts.buyout = TRUE) " & _
-		                                                   "	WHERE   rollouts.[Cabinet ID] = " & App.ConvertNumberToSQL(CabinetID) & _
-																											 "  				AND parts.[rollout id] IS NOT NULL")
+Private Function GetAssemblyRollOuts(RoomID, CabinetID, ImportType)
+	
+		select case ImportType 
+		Case IMPORT_TO_ROOM
+			CabinetWhereClause = "1=1"
+			RoomWhereClause = "Cabinets.[Room ID] = " & App.ConvertNumberToSQL(RoomID)
+		Case IMPORT_TO_CABINET
+			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.ConvertNumberToSQL(CabinetID)
+			RoomWhereClause = "1=1"
+	end select
+
+	Set GetAssemblyRollOuts = ReportDBConnection.Execute("	SELECT  Rollouts.[MaterialSchedule] " & _
+							          	 									  			 "					,Rollouts.[Height String] " & _
+								          	 									  		 "					,Rollouts.[Rollout Num] " & _
+							          	 									  			 "					,Rollouts.[Depth String] " & _
+							          	 									  			 "					,Rollouts.[Width String] " & _
+							          	 									  			 "					,NoteTable.RolloutCode " & _
+							          	 									  			 "					,Rollouts.Cost " & _
+																											"					,count(Rollouts.[Cabinet ID]) as QuantityPerAssembly " & _
+							          	 									  			 "	FROM    ((Rollouts " & _
+							          	 									  			 "	LEFT JOIN Cabinets ON (Rollouts.[Cabinet ID] = Cabinets.[Cabinet ID])) " & _
+							          	 									  			 "	LEFT JOIN parts ON (Rollouts.[Rollout id] = parts.[Rollout id] AND parts.buyout = TRUE)) " & _
+							          	 									  			 "	LEFT JOIN ( " & _
+																											"							select left(note,255) as RolloutCode " & _
+																											"										,ParentID " &  _
+																											"							from notes " & _
+																											"							where ParentType=7 " & _
+																											"								and Prompt = " & app.addquotes("_pulloutCode") & _
+																											"						) NoteTable " & _ 
+																											"				ON rollouts.[rollout ID] = NoteTable.[ParentID] " & _
+		                                                  "	WHERE " & RoomWhereClause & _
+																											"					AND " & CabinetWhereClause & _
+																											"					AND parts.[rollout id] IS NOT NULL" & _
+																											"	GROUP BY Rollouts.[Rollout Num] " & _
+																											"					,Rollouts.[MaterialSchedule] " & _
+																											"					,Rollouts.[Height String] " & _
+																											"					,Rollouts.[Depth String] " & _
+																											"					,Rollouts.[Width String] " & _
+																											"					,Rollouts.[Cost] " & _
+																											"					,NoteTable.RolloutCode")
+	
 End Function
 
-Private Function ImportAccessories(ByVal QuoteID, ByVal QuoteLineID, ByVal QuoteAssemblyID, ByVal RoomID)
+Private Function ImportAccessories(ByVal QuoteID, ByVal QuoteLineID, ByVal QuoteAssemblyID, ByVal QuoteMaterialID, ByVal RoomID)
 	Set rsAccessories = GetAccessoriesFromReport(RoomID)
 	Set rsQuoteMaterials = GetQuoteMaterials()
 	Const ACCESSORIES_TYPE = 2
 	
-	QuoteMaterialID = 1
+	'QuoteMaterialID = 100
 	
 	Do While Not rsAccessories.EOF 
 		MaterialPartID = CabinetBuilderPartIDTranslation(rsAccessories.Fields("AAssemblyID").Value, ACCESSORIES_TYPE)
 		app.DebugLog "ACCESSORIES - " & Join(MaterialPartID, "|"), DEBUG_MODE
 		If App.PartFunctions.DoesPartRevisionExist(MaterialPartID(0), MaterialPartID(1)) Then
+			
 			CreateQuoteMaterialsWithQuantityFormula rsQuoteMaterials, QuoteID, QuoteLineID, _
 																								 0, QuoteMaterialID, MaterialPartID(0), _
 																								 MaterialPartID(1), rsAccessories.Fields("AQuantity").Value, "", _
@@ -966,7 +1038,7 @@ Private Function ImportMouldingAssemblies(ByVal QuoteID, ByVal QuoteLineID, ByRe
 			If IsManufactured(MouldingPartID(0)) Then
 				CreateQuoteAssemblies rsQuoteAssemblies, QuoteID, QuoteLineID, _
 			                      	QuoteAssemblyID, MouldingPartID(0), MouldingPartID(1), "", "", _
-				                      cDbl(rsMoulding.Fields("Lineal Total").Value) / 12, _
+				                      cDbl(rsMoulding.Fields("LinealTotal").Value) / 12, _
 				                      rsMoulding.Fields("RoomNumber").Value, rsMoulding.Fields("RoomName").Value
 				rsQuoteAssemblies.UpdateBatch
 				App.QuoteFunctions.GetMethod QuoteID, QuoteLineID, QuoteAssemblyID, MouldingPartID(0), MouldingPartID(1), True
@@ -997,7 +1069,7 @@ Private Function ImportMouldingMaterials(ByVal QuoteID, ByVal QuoteLineID, ByRef
 			If Not IsManufactured(MouldingPartID(0)) Then
 				If CreateQuoteMaterialsWithQuantityFormula(rsQuoteMaterials, QuoteID, QuoteLineID, _
 																									 QuoteAssemblyID, QuoteMaterialID, MouldingPartID(0), _
-																									 MouldingPartID(1), cDbl(rsMoulding.Fields("Lineal Total").Value) / 12, "", _
+																									 MouldingPartID(1), cDbl(rsMoulding.Fields("LinealTotal").Value) / 12, "", _
 																									 "", True, 0, True) Then
 
 					QuoteMaterialID = QuoteMaterialID + 1
@@ -1016,14 +1088,15 @@ Private Function ImportMouldingMaterials(ByVal QuoteID, ByVal QuoteLineID, ByRef
 End Function
 
 Private Function GetMouldings(RoomID)
-	SET GetMouldings = ReportDBConnection.Execute("	SELECT ProfileID, [Material ID], RoomNumber, " & _
-                                                "	       RoomName, [Lineal Total] " & _
+		SET GetMouldings = ReportDBConnection.Execute("	SELECT ProfileID, [Material ID], " & _
+																								"						RoomNumber, RoomName, sum([Lineal Total]) as LinealTotal " & _
 	                                              "	FROM   Molding " & _
                                                 "         INNER JOIN Rooms " & _
 	                                              "	               ON (Molding.[Room ID] = Rooms.[RoomNumber]) " & _
 	                                              "	WHERE  Type <> 2 " & _
 	                                              "	       AND Type <> 10 " & _
-																								"	       AND Molding.[Room ID] = " & App.ConvertNumberToSQL(RoomID))
+																								"	       AND Molding.[Room ID] = " & App.ConvertNumberToSQL(RoomID) & _
+																								"	GROUP BY ProfileID, [Material ID], RoomNumber, RoomName ")
 End Function
 
 Private Function IsManufactured(PartID)
@@ -1988,10 +2061,20 @@ Private Function GenerateQuoteMaterials(ByRef rsQuoteMaterials, ByVal ID, ByVal 
 End Function
 
 Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials, ByVal QuoteID, ByVal QuoteLineID, _
-	                                                       ByVal QuoteAssemblyID, ByVal QuoteMaterialID, ByVal PartID, _
+	                                                       ByVal QuoteAssemblyID, ByVAL QuoteMaterialID, ByVal PartID, _
 	                                                       ByVal PartRevisionID, ByVal QuantityPerAssembly, ByVal ShortDescription, _
 	                                                       ByVal LongDescription, ByVal Consolidated, ByVal DefaultPrice, _
 	                                                       ByVal UseDefaultValue)
+	if VERBOSE then
+		msgbox "CreateQuoteMaterialsWithQuantityFormula" & vbnewline & _
+					 "QuoteID: " & QuoteID & vbnewline & _
+					 "QuoteLineID: " & QuoteLineID & vbnewline & _
+					 "QuoteAssemblyID: " & QuoteAssemblyID & vbnewline & _
+					 "QuoteMaterialID: " & QuoteMaterialID & vbnewline
+	end if
+	
+
+	
 	NewQuoteMaterialIDNeeded = False
 	FoundPart = False
 	
@@ -2026,6 +2109,15 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
 																			ByVal QuoteAssemblyID, ByRef QuoteMaterialID, ByVal PartID, _
 																			ByVal PartRevisionID, ByVal QuantityPerAssembly, ByVal ShortDescription, _
 																			ByVal LongDescription, ByVal DefaultPrice, ByVal UseDefaultValue)
+	
+	if VERBOSE then
+		msgbox "CreateQuoteMaterials" & vbnewline & _
+					 "QuoteID: " & QuoteID & vbnewline & _
+					 "QuoteLineID: " & QuoteLineID & vbnewline & _
+					 "QuoteAssemblyID: " & QuoteAssemblyID & vbnewline & _
+					 "QuoteMaterialID: " & QuoteMaterialID & vbnewline
+	end if
+	
   rsQuoteMaterials.AddNew
 	App.BlankRecord rsQuoteMaterials
   rsQuoteMaterials.Fields("qmmQuoteID").value = QuoteID
