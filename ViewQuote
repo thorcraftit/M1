@@ -21,7 +21,7 @@ Function cmdImportRooms_Click()
 			vbsCabinetVisionByRoomImport.OpenDatabases
 			
 			if vbsCabinetVisionByRoomImport.isLaborEnabled() then
-				
+
 				QuoteLines = vbsCabinetVisionByRoomImport.CreateProjectQuoteLines(Controls("txtqmpQuoteID").Value, _
 									 																										 Controls("txtQmpProjectID").Value, _
 									 																										 Controls("txtProjectAreaID").Value, _
@@ -132,9 +132,7 @@ function UpdateProjectOnQuoteLines ()
 	end if
 end function	
 '----------End automatically copy Project ID to quote lines
-	
 '---------------------------------
-
 Function M1DataControl_ViewInitialize()
 	controls("optImportType").value = 1	
 End Function
