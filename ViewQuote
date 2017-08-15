@@ -1,0 +1,141 @@
+'----------Begin M1 Code----------
+'---------------------------------
+
+'----------CV import customization
+IncludeScript "vbsCabinetVisionByRoomImport"	
+IncludeScript "vbsUpdateRevisedPrice"
+
+Function txtProjectAreaID_SearchClick()
+	If Trim(Controls("txtQmpProjectID").Value) <> "" Then 
+		Controls("txtProjectAreaID").AdditionalFilter = "praProjectID = " & App.AddQuotes(Controls("txtQmpProjectID").Value)
+	Else
+		Controls("txtProjectAreaID").AdditionalFilter = ""
+	End If
+End Function
+
+Function cmdImportRooms_Click()
+	If (Trim(Controls("txtQmpProjectID").Value) <> "" AND Trim(Controls("txtProjectAreaID").Value) <> "") _
+		Or (Trim(Controls("txtQmpProjectID").Value) = "" AND Trim(Controls("txtProjectAreaID").Value) = "") Then
+		If Controls("M1DataControl").SaveRecordEx = 0 Then
+			
+			vbsCabinetVisionByRoomImport.OpenDatabases
+			
+			if vbsCabinetVisionByRoomImport.isLaborEnabled() then
+				
+				QuoteLines = vbsCabinetVisionByRoomImport.CreateProjectQuoteLines(Controls("txtqmpQuoteID").Value, _
+									 																										 Controls("txtQmpProjectID").Value, _
+									 																										 Controls("txtProjectAreaID").Value, _
+																																				controls("optImportType").value)
+
+				For Each QuoteLineID In QuoteLines 
+					vbsUpdateRevisedPrice.UpdateRevisedPrices Controls("txtQmpQuoteID").Value, QuoteLineID
+					vbsUpdateRevisedPrice.ForeRefreshTaxes Controls("txtQmpQuoteID").Value, QuoteLineID
+				Next
+
+			else
+				msgbox "Please enable pricing in Cabinet Vision before generating quote data.", _
+				       vbExclamation + vbOkOnly, _
+               "Error in Import Process"
+			end if
+				
+			vbsCabinetVisionByRoomImport.CloseDatabases
+			Controls("M1DataControl").RefreshTree	
+				
+		End If
+	Else
+		Msgbox "If you have a Project ID, you are required to enter a Project Area ID. " & _
+				   "If you enter a Project Area ID, you must have a Project ID.", _
+				   vbExclamation + vbOkOnly, _
+			     "Error in Import Process"
+	End If
+End Function
+'----------End CV import customization
+
+
+'----------Begin deposit schedule quote report customization
+Function chkPaymentScheduled_Change()
+	If controls("chkPaymentScheduled").value = 0 Then
+		controls("txtUQmpDepositAmount").value = 0
+		controls("txtUqmpSecondPaymentAmount").value = 0
+		controls("txtUqmpPaymentDeliveryAmount").value = 0		
+	End If	
+End Function
+'----------End deposit schedule quote report customization
+
+'---------------------------------
+'----------End M1 Code----------
+'---------------------------------
+
+
+
+
+'---------------------------------
+'----------Begin Thorcraft Code---
+'---------------------------------
+				
+'----------Begin builder credit
+Function chkBuilderCredit_Change()
+	If controls("chkBuilderCredit").value = false Then
+		controls("txtBuilderCreditID").value = ""
+	End If	
+End Function
+'----------End builder credit
+
+'----------Begin tree name customization
+Function UpdateCustomerName()
+	Dim rsCustLookup
+	Set rsCustLookup = CreateObject("ADODB.Recordset")
+	rsCustLookup.Open " select cmlName from OrganizationLocations where cmlOrganizationID = " + _
+										  app.AddQuotes(controls("txtQmpShipOrganizationID").Value) + _
+										" and cmlLocationID = " + App.AddQuotes(controls("txtQmpShipLocationID").value), _
+											Connection,adOpenStatic,adLockReadOnly,adCmdText
+	If rsCustLookup.EOF = False Then
+		Controls("txtuqmpCustomerName").Value = rsCustLookup.Fields("cmlName").Value
+	End If
+	rsCustLookup.Close
+end function
+
+Function txtQmpShipOrganizationID_UserChange()
+	UpdateCustomerName
+End Function
+
+Function txtQmpShipLocationID_UserChange()
+	UpdateCustomerName
+End Function
+
+Function M1DataControl_RecordChange()
+    UpdateCustomerName
+		controls("optImportType").value = 1
+End Function
+	
+Function M1DataControl_RecordSave()
+  UpdateCustomerName
+End Function
+'----------End tree name customization
+
+'----------Automatically copy Project ID to quote lines
+function txtQmpProjectID_UserChange() 
+	UpdateProjectOnQuoteLines
+end function
+
+function UpdateProjectOnQuoteLines ()
+	if trim(controls("txtQmpQuoteID").value) <> "" then	
+		Connection.Execute ( _
+		"	Update quotelines" & _
+		"	set qmlprojectID = " & app.addquotes(controls("txtQmpProjectID").value) & _
+		"	where qmlQuoteID = " & app.addquotes(controls("txtQmpQuoteID").value) & _
+		"  			and qmlProjectID <> " & app.addquotes(controls("txtQmpProjectID").value))
+	else
+		Msgbox "Please set the Quote ID", _
+				   vbExclamation + vbOkOnly, _
+			     "Error"
+	end if
+end function	
+'----------End automatically copy Project ID to quote lines
+	
+'---------------------------------
+
+Function M1DataControl_ViewInitialize()
+	controls("optImportType").value = 1	
+End Function
+'----------End ThorcraftCode------
