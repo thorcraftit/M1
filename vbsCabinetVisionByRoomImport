@@ -542,7 +542,7 @@ Private Function ImportRoomID(QuoteID, QuoteLineID, RoomID, ImportType)
 			QuoteAssemblyID = 1
 			ImportMouldingAssemblies QuoteID, QuoteLineID, QuoteAssemblyID, RoomID
 			ImportMouldingMaterials QuoteID, QuoteLineID, 0, RoomID
-'			ImportTopsTable QuoteID, QuoteLineID, 0, RoomID
+			ImportTopsTable QuoteID, QuoteLineID, 0, RoomID
 		
 		CASE IMPORT_TO_CABINET
 '			import into cabinet assemblies
@@ -553,7 +553,7 @@ Private Function ImportRoomID(QuoteID, QuoteLineID, RoomID, ImportType)
 			ImportAccessories QuoteID, QuoteLineID, QuoteAssemblyID, QuoteMaterialID, RoomID	
 			ImportMouldingAssemblies QuoteID, QuoteLineID, QuoteAssemblyID, RoomID
 			ImportMouldingMaterials QuoteID, QuoteLineID, 0, RoomID
-'			ImportTopsTable QuoteID, QuoteLineID, 0, RoomID
+			ImportTopsTable QuoteID, QuoteLineID, 0, RoomID
 	End Select
 End Function
 		
