@@ -747,10 +747,19 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 				QuantityPerAssembly = 0
 			End If
 			
+			if rsCabinetMaterials.Fields("Part ID").Value = 68 or rsCabinetMaterials.Fields("Part ID").Value = 101 then
+				'CV part is a Pull
+				ShortDescription = rsCabinetMaterials.Fields("Description").Value & " Pull"
+				FilterByName = TRUE
+			else
+				ShortDescription = ""	
+				FilterByName = FALSE
+			end if
+				
 			If CreateQuoteMaterialsWithQuantityFormula(rsQuoteMaterials, QuoteID, QuoteLineID, _
 				                                         QuoteAssemblyID, QuoteMaterialID, PartKeys(0), _
-				                                         PartKeys(1), QuantityPerAssembly, "", LongDescription, _
-				                                         True, 0, True) Then
+				                                         PartKeys(1), QuantityPerAssembly, ShortDescription, LongDescription, _
+				                                         True, 0, True, FilterByName) Then
 				QuoteMaterialID = QuoteMaterialID + 1
 			End If
 		Else
@@ -1004,7 +1013,7 @@ Private Function ImportAccessories(ByVal QuoteID, ByVal QuoteLineID, ByVal Quote
 			CreateQuoteMaterialsWithQuantityFormula rsQuoteMaterials, QuoteID, QuoteLineID, _
 																								 0, QuoteMaterialID, MaterialPartID(0), _
 																								 MaterialPartID(1), rsAccessories.Fields("AQuantity").Value, "", _
-																								 "", False, rsAccessories.Fields("AList Price").Value, False
+																								 "", False, rsAccessories.Fields("AList Price").Value, False, False
 			QuoteMaterialID = QuoteMaterialID + 1
 		Else 
 			AddErrorMessage Trim(rsAccessories.Fields("Access").Value) & ", " & Trim(rsAccessories.Fields("RoomName").Value) & ", Cab #" & _
@@ -1070,7 +1079,7 @@ Private Function ImportMouldingMaterials(ByVal QuoteID, ByVal QuoteLineID, ByRef
 				If CreateQuoteMaterialsWithQuantityFormula(rsQuoteMaterials, QuoteID, QuoteLineID, _
 																									 QuoteAssemblyID, QuoteMaterialID, MouldingPartID(0), _
 																									 MouldingPartID(1), cDbl(rsMoulding.Fields("LinealTotal").Value) / 12, "", _
-																									 "", True, 0, True) Then
+																									 "", True, 0, True, False) Then
 
 					QuoteMaterialID = QuoteMaterialID + 1
 				End IF
@@ -1133,7 +1142,7 @@ Private Function ImportTopsTable(ByVal QuoteID, ByVal QuoteLineID, ByVal QuoteAs
 			If CreateQuoteMaterialsWithQuantityFormula(rsQuoteMaterials, QuoteID, QuoteLineID, _
 			                                         QuoteAssemblyID, QuoteMaterialID, PartKeys(0), _
 			                                         PartKeys(1), 1, "", LongDescription, _
-			                                         False, rsPurchasedTops.Fields("Cost").Value, False) Then
+			                                         False, rsPurchasedTops.Fields("Cost").Value, False, False) Then
 				QuoteMaterialID = QuoteMaterialID + 1
 			End If
 		Else
@@ -2051,7 +2060,7 @@ Private Function GenerateQuoteMaterials(ByRef rsQuoteMaterials, ByVal ID, ByVal 
 			If CreateQuoteMaterialsWithQuantityFormula(rsQuoteMaterials, QuoteID, QuoteLineID, _
 				                                         QuoteAssemblyID, QuoteMaterialID, PartKeys(0), _
 				                                         PartKeys(1), QuantityPerAssembly, "", _
-				                                         LongDescription, Consolidated, DefaultCost, UseDefaultValue) Then
+				                                         LongDescription, Consolidated, DefaultCost, UseDefaultValue, False) Then
 				
 				QuoteMaterialID = QuoteMaterialID + 1
 			End If
@@ -2064,7 +2073,7 @@ Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials,
 	                                                       ByVal QuoteAssemblyID, ByVAL QuoteMaterialID, ByVal PartID, _
 	                                                       ByVal PartRevisionID, ByVal QuantityPerAssembly, ByVal ShortDescription, _
 	                                                       ByVal LongDescription, ByVal Consolidated, ByVal DefaultPrice, _
-	                                                       ByVal UseDefaultValue)
+	                                                       ByVal UseDefaultValue, ByVal FilterByName)
 	if VERBOSE then
 		msgbox "CreateQuoteMaterialsWithQuantityFormula" & vbnewline & _
 					 "QuoteID: " & QuoteID & vbnewline & _
@@ -2072,15 +2081,21 @@ Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials,
 					 "QuoteAssemblyID: " & QuoteAssemblyID & vbnewline & _
 					 "QuoteMaterialID: " & QuoteMaterialID & vbnewline
 	end if
-	
-
-	
+		
 	NewQuoteMaterialIDNeeded = False
 	FoundPart = False
 	
 	If Consolidated Then
-		rsQuoteMaterials.Filter = "qmmPartID = " & App.AddQuotes(PartID) & _
-		                          " AND qmmPartRevisionID = " & App.AddQuotes(PartRevisionID)
+		
+		if FilterByName then
+			rsQuoteMaterials.Filter = "qmmPartID = " & App.AddQuotes(PartID) & _
+			                          " AND qmmPartRevisionID = " & App.AddQuotes(PartRevisionID) & _
+																" AND qmmPartShortDescription = " & app.AddQuotes(ShortDescription)
+		else
+			rsQuoteMaterials.Filter = "qmmPartID = " & App.AddQuotes(PartID) & _
+			                          " AND qmmPartRevisionID = " & App.AddQuotes(PartRevisionID)
+		end if
+						
 		
 		Do While Not rsQuoteMaterials.EOF 
 			If cLng(rsQuoteMaterials.Fields("qmmQuoteAssemblyID").Value) = cLng(QuoteAssemblyID) Then
