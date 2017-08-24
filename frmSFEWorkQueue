@@ -30,16 +30,15 @@ Function ProcessClockOut(Complete)
 	Const WORKCODE_PARTIAL = 1, WORKCODE_COMPLETE = 2
 	Do While Not rsTimecardLines.EOF
 		If Complete Then
-			Quantity = rsTimecardLines.Fields("QuantityToComplete").Value
 			CompletionType = WORKCODE_COMPLETE
 		Else
-			Quantity = 0
 			CompletionType = WORKCODE_PARTIAL
 		End If
 		
 		StopProduction rsTimecardLines.Fields("lmlTimecardID").Value, _
                                rsTimecardLines.Fields("lmlTimecardLineID").Value, _
-                               Quantity, 0, CompletionType
+                               rsTimecardLines.Fields("QuantityToComplete").Value, _
+															 0, CompletionType
 		rsTimecardLines.MoveNext
 	Loop
 	rsTimecardLines.Close
@@ -68,7 +67,7 @@ Function cmdExecuteProjectString_Click()
 				StartIndirect (ArrayProjectAreaString(PROCESSS_ID))
 			case END_INDIRECT	
 				'msgbox "END_INDIRECT"
-			DebugLog "Ending Indirect: " & Join (ArrayProjectAreaString, "|"), DebugMode
+				DebugLog "Ending Indirect: " & Join (ArrayProjectAreaString, "|"), DebugMode
 				EndIndirect
 			Case START_JOB
 				EndAllTimecardLines
