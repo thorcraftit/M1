@@ -30,14 +30,17 @@ Function ProcessClockOut(Complete)
 	Const WORKCODE_PARTIAL = 1, WORKCODE_COMPLETE = 2
 	Do While Not rsTimecardLines.EOF
 		If Complete Then
+			Quantity = rsTimecardLines.Fields("QuantityToComplete").Value																												
 			CompletionType = WORKCODE_COMPLETE
 		Else
+			'Quantity = 0
+			Quantity = rsTimecardLines.Fields("QuantityToComplete").Value				 
 			CompletionType = WORKCODE_PARTIAL
 		End If
 		
 		StopProduction rsTimecardLines.Fields("lmlTimecardID").Value, _
                                rsTimecardLines.Fields("lmlTimecardLineID").Value, _
-                               rsTimecardLines.Fields("QuantityToComplete").Value, _
+                               Quantity, _
 															 0, CompletionType
 		rsTimecardLines.MoveNext
 	Loop
@@ -117,6 +120,7 @@ Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID)
 		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 
 	if rsJobOperations.EOF then
+		StartIndirect ("ERROR")
 		msgbox "No operations for project. Please see Shop Foreman."
 		exit sub
 	end if	
@@ -416,6 +420,9 @@ function EndIndirect ()
 	'EndTime = now()
 	
 	do while not rsTimecardLines.EOF
+																																																						 
+																																									
+																							
 		returnVal = App.TimecardFunctions.StopIndirectJob (rsTimecardLines.Fields("lmlTimecardID").value, _	
 																					 							rsTimecardLines.Fields("lmlTimecardLineID").value, _
 																					 							"", FALSE,now())
@@ -442,6 +449,7 @@ function StartIndirect (IndirectID)
 																								"	WHERE  lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
 																								"	       AND lmlActive <> 0 " & _
 																								"	       AND lmlTimecardType = 2").EOF		
+	 
 	if AlreadyActiveIndirect then
 		msgbox "You may only clock in on one indirect code at a time.", vbInformation + vbOKOnly, "Error"
 		exit function
@@ -461,6 +469,7 @@ function StartIndirect (IndirectID)
 																				"	WHERE		lmeEmployeeID = " & App.AddQuotes(App.UserEmployeeID) _
 																			).Fields ("lmeHomeProductionDepartmentID").value
 	
+																																																								
 	returnvalue = app.TimecardFunctions.StartIndirect (CurrentTimecardID, HomeDepartment, IndirectID, now())
 	
 	'Controls("cmdOK").DoClick
