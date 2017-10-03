@@ -100,16 +100,6 @@ Function M1DataControl_SaveDataCompleted(sender, e)
 	end if
 End Function
 	
-Function M1DataControl_RecordChange(sender, e)
-	if trim(controls("txtqmpQuoteID").value) <> "" then
-		UpdateCustomerName	controls("txtQmpQuoteID").value, _
-												controls("txtQmpShipOrganizationID").Value, _
-												controls("txtQmpShipLocationID").value
-		UpdateProjectOnQuoteLines controls("txtqmpQuoteID").value, controls("txtQmpProjectID").value
-		this.OnDataChanged(3)
-	end if
-End Function
-	
 function UpdateProjectOnQuoteLines(ByVal QuoteID, ByVal ProjectID) 
 	
 	dim rsQuoteLines
