@@ -1,3 +1,10 @@
+Function this_initialize(sender, e)
+	includeScript "vbsCabinetVisionByRoomImport"
+	includeScript "vbsUpdateRevisedPrice"
+
+	controls("optImportType").ValueString = 1	
+end function
+
 Function txtProjectAreaID_SearchClick()
 	If Trim(Controls("txtQmpProjectID").Value) <> "" Then 
 		Controls("txtProjectAreaID").Search.AdditionalFilter = "praProjectID = " & App.Convert.StringToSql(Controls("txtQmpProjectID").Value)
@@ -59,60 +66,49 @@ End Function
 Function UpdateCustomerName()
 	Dim rsCustLookup
 	Set rsCustLookup = CreateObject("ADODB.Recordset")
-	rsCustLookup.Open " select cmlName from OrganizationLocations where cmlOrganizationID = " + _
-										  App.Convert.StringToSql(controls("txtQmpShipOrganizationID").Value) + _
-										" and cmlLocationID = " + App.Convert.StringToSql(controls("txtQmpShipLocationID").value), _
+	rsCustLookup.Open "	select cmlName " & _
+										"	from OrganizationLocations " & _
+										"	where cmlOrganizationID = " & App.Convert.StringToSql(controls("txtQmpShipOrganizationID").Value) & _
+										" 	 and cmlLocationID = " & App.Convert.StringToSql(controls("txtQmpShipLocationID").value), _
 											Connection,adOpenStatic,adLockReadOnly,adCmdText
-	If rsCustLookup.EOF = False Then
+	If not rsCustLookup.EOF Then
 		Controls("txtuqmpCustomerName").Value = rsCustLookup.Fields("cmlName").Value
 	End If
 	rsCustLookup.Close
+
 end function
-
-Function txtQmpShipOrganizationID_UserChange(sender, e)
-	UpdateCustomerName
-End Function
-
-Function txtQmpShipLocationID_UserChange(sender, e)
-	UpdateCustomerName
-End Function
-
-Function M1DataControl_RecordChange(sender, e)
-    UpdateCustomerName
-		controls("optImportType").ValueString = 1
-End Function
-
-Function M1DataControl_SaveDataCompleted(sender, e)
-  UpdateCustomerName
-	UpdateProjectOnQuoteLines
-	this.OnDataChanged(3)
-End Function
-'----------End tree name customization
-	
-'----------Automatically copy Project ID to quote lines
-function txtQmpProjectID_UserChange(sender, e) 
-	UpdateProjectOnQuoteLines
-end function
-
-function UpdateProjectOnQuoteLines ()
-	if trim(controls("txtQmpQuoteID").value) <> "" then	
-		Connection.Execute ( _
-		"	Update quotelines" & _
-		"	set qmlprojectID = " & App.Convert.StringToSql(controls("txtQmpProjectID").value) & _
-		"	where qmlQuoteID = " & App.Convert.StringToSql(controls("txtQmpQuoteID").value) & _
-		"  			and qmlProjectID <> " & App.Convert.StringToSql(controls("txtQmpProjectID").value))
-	else
-		Msgbox "Please set the Quote ID", _
-				   vbExclamation + vbOkOnly, _
-			     "Error"
+		
+Function M1DataControl_SaveDataStarted(sender, e)
+	if trim(controls("txtqmpQuoteID").value) <> "" then
+		UpdateCustomerName
+		UpdateProjectOnQuoteLines
 	end if
-end function	
-'----------End automatically copy Project ID to quote lines
-'---------------------------------
-Function this_initialize(sender, e)
-	includeScript "vbsCabinetVisionByRoomImport"
-	includeScript "vbsUpdateRevisedPrice"
+End Function
+	
+Function M1DataControl_RecordChange(sender, e)
+	if trim(controls("txtqmpQuoteID").value) <> "" then
+		UpdateCustomerName
+		UpdateProjectOnQuoteLines
+	end if
+End Function
+	
+function UpdateProjectOnQuoteLines() 
+	
+	dim rsQuoteLines
+	Set rsQuoteLines = CreateObject("ADODB.Recordset")
+		
+	rsQuoteLines.Open "	select qmlQuoteID, qmlQuoteLineID, qmlProjectID " & _
+										"	from QuoteLines	" & _
+										"	where qmlQuoteID = " & app.convert.NumberToSql(controls("txtqmpQuoteID").value) & _
+										"	order by qmlQuoteLineID", _
+										Connection,adOpenStatic,adLockReadOnly,adCmdText
+	if not rsQuoteLines.EOF then
+		do while not rsQuotelines.EOF
+			rsQuotelines.Fields("qmlProjectID").value = trim(controls("txtQmpProjectID").value)
+			rsQuotelines.MoveNext()
+		loop
+		rsQuoteLines.UpdateBatch
+	end if
 
-	controls("optImportType").ValueString = 1	
-end function
+end function	
 
