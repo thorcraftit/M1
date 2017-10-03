@@ -1,0 +1,105 @@
+Function chkBuilderCredit_ValueChanged(sender, e)
+	If controls("chkBuilderCredit").value = false Then
+		controls("txtBuilderCreditID").value = ""
+	End If	
+End Function
+
+Function UpdateCustomerName(ByVal SalesOrderID, ByVal OrganizationLocationID, ByVal LocationID)
+	Dim rsCustLookup
+	Set rsCustLookup = CreateObject("ADODB.Recordset")
+	rsCustLookup.Open "	select cmlName " & _
+										"	from OrganizationLocations " & _
+										"	where cmlOrganizationID = " & App.Convert.StringToSql(OrganizationLocationID) & _
+										" 	 and cmlLocationID = " & App.Convert.StringToSql(LocationID), _
+										Connection,adOpenStatic,adLockReadOnly,adCmdText
+	If not rsCustLookup.EOF Then
+		dim rsSalesOrder
+		set rsSalesOrder = CreateObject("ADODB.Recordset")
+		rsSalesOrder.open 	"	select ompSalesOrderID, uompCustomerName from SalesOrders " & _
+												"	where ompSalesOrderID = " & App.Convert.StringToSql(SalesOrderID), _
+												Connection,adOpenStatic,adLockReadOnly,adCmdText
+		if not rsSalesOrder.EOF then
+			if rsSalesOrder.fields("uompCustomerName").value <> rsCustLookup.fields("cmlName").value then 
+				rsSalesOrder.fields("uompCustomerName").value = rsCustLookup.fields("cmlName").value
+				rsSalesOrder.UpdateBatch
+			end if
+			
+		end if	
+
+	End If
+	rsCustLookup.Close
+
+end function
+
+function UpdateProjectOnSalesOrderLines (ByVal SalesOrderID, ByVal ProjectID)
+	
+	dim rsSalesOrderLines
+	Set rsSalesOrderLines = CreateObject("ADODB.Recordset")
+		
+	rsSalesOrderLines.Open	"	select omlSalesOrderID, omlSalesOrderLineID, omlProjectID " & _
+													"	from SalesOrderLines	" & _
+													"	where omlSalesOrderID = " & app.convert.StringToSql(SalesOrderID) & _
+													"		and omlProjectID <> " & app.convert.StringToSql(ProjectID) & _
+													"	order by omlSalesOrderLineID", _
+													Connection,adOpenStatic,adLockReadOnly,adCmdText
+	if not rsSalesOrderLines.EOF then
+		do while not rsSalesOrderLines.EOF
+			rsSalesOrderLines.Fields("omlProjectID").value = ProjectID
+			rsSalesOrderLines.MoveNext()
+		loop
+		rsSalesOrderLines.UpdateBatch
+	end if
+
+end function	
+
+function UpdateProjectOnLinkedJobs (ByVal SalesOrderID, ByVal ProjectID)
+
+	dim rsJobList
+	Set rsJobList = CreateObject("ADODB.Recordset")
+		
+	rsJobList.Open  "  select			jmpjobid " & _
+									"	from				jobs " & _
+									"  inner join  SalesOrderJobLinks on jmpjobid = omjJobID " & _
+									"	inner join  SalesOrderLines on omjSalesOrderID = omlSalesOrderID " & _
+									"														 and omjSalesOrderLineID = omlSalesOrderLineID " & _
+									"	inner join  SalesOrders on omlSalesOrderID = ompSalesOrderID " & _
+									"	where			 ompSalesOrderID = " & App.Convert.StringToSql(SalesOrderID) & _
+									"					and jmpProjectID <> " & App.Convert.StringToSql(ProjectID), _
+											Connection,adOpenStatic,adLockReadOnly,adCmdText
+	
+	if not rsJobList.EOF then
+		dim rsJobToUpdate
+		set rsJobToUpdate = CreateObject("ADODB.Recordset")
+		
+		do while not rsJobList.EOF
+			rsJobToUpdate.open	"	select jmpjobid, jmpProjectID from Jobs " & _ 
+													"	where jmpJobID = " & App.Convert.StringToSql(rsJobList.fields("jmpJobID").value), _
+													Connection,adOpenStatic,adLockReadOnly,adCmdText
+			if not rsJobToUpdate.EOF then 
+				rsJobToUpdate.fields("jmpProjectID").value = ProjectID
+			end if
+			rsJobToUpdate.UpdateBatch
+			rsJobToUpdate.close
+			
+			rsJobList.MoveNext  
+		loop
+
+	end if
+
+end function 
+
+Function M1DataControl_SaveDataCompleted(sender, e)
+	if trim(controls("txtOmpSalesOrderID").value) <> "" then
+		UpdateCustomerName controls("txtOmpSalesOrderID").value, controls("txtOmpShipOrganizationID").value, controls("txtOmpShipLocationID").value
+	
+		UpdateProjectOnSalesOrderLines controls("txtompSalesOrderID").value, controls("txtOmpProjectID").value
+		UpdateProjectOnLinkedJobs controls("txtompSalesOrderID").Value, controls("txtOmpProjectID").value
+		vbsSalesOrderTotals.UpdateSalesOrderCabinetTotal controls("txtOmpSalesOrderID").Value
+		vbsSalesOrderTotals.UpdateSalesOrderPaintTotal controls("txtOmpSalesOrderID").Value
+		this.OnDataChanged(3)
+	end if
+End Function
+
+Function this_Initialize(sender, e)
+	includescript "vbsSalesOrderTotals"
+End Function
