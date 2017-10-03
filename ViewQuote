@@ -1,35 +1,27 @@
-'----------Begin M1 Code----------
-'---------------------------------
-
-'----------CV import customization
-IncludeScript "vbsCabinetVisionByRoomImport"	
-IncludeScript "vbsUpdateRevisedPrice"
-
 Function txtProjectAreaID_SearchClick()
 	If Trim(Controls("txtQmpProjectID").Value) <> "" Then 
-		Controls("txtProjectAreaID").AdditionalFilter = "praProjectID = " & App.AddQuotes(Controls("txtQmpProjectID").Value)
+		Controls("txtProjectAreaID").Search.AdditionalFilter = "praProjectID = " & App.Convert.StringToSql(Controls("txtQmpProjectID").Value)
 	Else
-		Controls("txtProjectAreaID").AdditionalFilter = ""
+		Controls("txtProjectAreaID").Search.AdditionalFilter = ""
 	End If
 End Function
 
-Function cmdImportRooms_Click()
+Function cmdImportRooms_Click(sender, e)
 	If (Trim(Controls("txtQmpProjectID").Value) <> "" AND Trim(Controls("txtProjectAreaID").Value) <> "") _
 		Or (Trim(Controls("txtQmpProjectID").Value) = "" AND Trim(Controls("txtProjectAreaID").Value) = "") Then
-		If Controls("M1DataControl").SaveRecordEx = 0 Then
-			
+		If this.SaveView = 0 Then
+
 			vbsCabinetVisionByRoomImport.OpenDatabases
 			
 			if vbsCabinetVisionByRoomImport.isLaborEnabled() then
-
 				QuoteLines = vbsCabinetVisionByRoomImport.CreateProjectQuoteLines(Controls("txtqmpQuoteID").Value, _
 									 																										 Controls("txtQmpProjectID").Value, _
 									 																										 Controls("txtProjectAreaID").Value, _
-																																				controls("optImportType").value)
+																																				cint(controls("optImportType").ValueString))
 
 				For Each QuoteLineID In QuoteLines 
 					vbsUpdateRevisedPrice.UpdateRevisedPrices Controls("txtQmpQuoteID").Value, QuoteLineID
-					vbsUpdateRevisedPrice.ForeRefreshTaxes Controls("txtQmpQuoteID").Value, QuoteLineID
+					'vbsUpdateRevisedPrice.ForeRefreshTaxes Controls("txtQmpQuoteID").Value, QuoteLineID
 				Next
 
 			else
@@ -39,7 +31,7 @@ Function cmdImportRooms_Click()
 			end if
 				
 			vbsCabinetVisionByRoomImport.CloseDatabases
-			Controls("M1DataControl").RefreshTree	
+			this.OnDataChanged(3)
 				
 		End If
 	Else
@@ -49,45 +41,27 @@ Function cmdImportRooms_Click()
 			     "Error in Import Process"
 	End If
 End Function
-'----------End CV import customization
 
-
-'----------Begin deposit schedule quote report customization
-Function chkPaymentScheduled_Change()
+Function chkPaymentScheduled_ValueChanged(sender, e)
 	If controls("chkPaymentScheduled").value = 0 Then
 		controls("txtUQmpDepositAmount").value = 0
 		controls("txtUqmpSecondPaymentAmount").value = 0
 		controls("txtUqmpPaymentDeliveryAmount").value = 0		
 	End If	
 End Function
-'----------End deposit schedule quote report customization
 
-'---------------------------------
-'----------End M1 Code----------
-'---------------------------------
-
-
-
-
-'---------------------------------
-'----------Begin Thorcraft Code---
-'---------------------------------
-				
-'----------Begin builder credit
-Function chkBuilderCredit_Change()
+Function chkBuilderCredit_ValueChanged(sender, e)
 	If controls("chkBuilderCredit").value = false Then
 		controls("txtBuilderCreditID").value = ""
 	End If	
 End Function
-'----------End builder credit
 
-'----------Begin tree name customization
 Function UpdateCustomerName()
 	Dim rsCustLookup
 	Set rsCustLookup = CreateObject("ADODB.Recordset")
 	rsCustLookup.Open " select cmlName from OrganizationLocations where cmlOrganizationID = " + _
-										  app.AddQuotes(controls("txtQmpShipOrganizationID").Value) + _
-										" and cmlLocationID = " + App.AddQuotes(controls("txtQmpShipLocationID").value), _
+										  App.Convert.StringToSql(controls("txtQmpShipOrganizationID").Value) + _
+										" and cmlLocationID = " + App.Convert.StringToSql(controls("txtQmpShipLocationID").value), _
 											Connection,adOpenStatic,adLockReadOnly,adCmdText
 	If rsCustLookup.EOF = False Then
 		Controls("txtuqmpCustomerName").Value = rsCustLookup.Fields("cmlName").Value
@@ -95,26 +69,28 @@ Function UpdateCustomerName()
 	rsCustLookup.Close
 end function
 
-Function txtQmpShipOrganizationID_UserChange()
+Function txtQmpShipOrganizationID_UserChange(sender, e)
 	UpdateCustomerName
 End Function
 
-Function txtQmpShipLocationID_UserChange()
+Function txtQmpShipLocationID_UserChange(sender, e)
 	UpdateCustomerName
 End Function
 
-Function M1DataControl_RecordChange()
+Function M1DataControl_RecordChange(sender, e)
     UpdateCustomerName
-		controls("optImportType").value = 1
+		controls("optImportType").ValueString = 1
 End Function
-	
-Function M1DataControl_RecordSave()
+
+Function M1DataControl_SaveDataCompleted(sender, e)
   UpdateCustomerName
+	UpdateProjectOnQuoteLines
+	this.OnDataChanged(3)
 End Function
 '----------End tree name customization
-
+	
 '----------Automatically copy Project ID to quote lines
-function txtQmpProjectID_UserChange() 
+function txtQmpProjectID_UserChange(sender, e) 
 	UpdateProjectOnQuoteLines
 end function
 
@@ -122,9 +98,9 @@ function UpdateProjectOnQuoteLines ()
 	if trim(controls("txtQmpQuoteID").value) <> "" then	
 		Connection.Execute ( _
 		"	Update quotelines" & _
-		"	set qmlprojectID = " & app.addquotes(controls("txtQmpProjectID").value) & _
-		"	where qmlQuoteID = " & app.addquotes(controls("txtQmpQuoteID").value) & _
-		"  			and qmlProjectID <> " & app.addquotes(controls("txtQmpProjectID").value))
+		"	set qmlprojectID = " & App.Convert.StringToSql(controls("txtQmpProjectID").value) & _
+		"	where qmlQuoteID = " & App.Convert.StringToSql(controls("txtQmpQuoteID").value) & _
+		"  			and qmlProjectID <> " & App.Convert.StringToSql(controls("txtQmpProjectID").value))
 	else
 		Msgbox "Please set the Quote ID", _
 				   vbExclamation + vbOkOnly, _
@@ -133,7 +109,10 @@ function UpdateProjectOnQuoteLines ()
 end function	
 '----------End automatically copy Project ID to quote lines
 '---------------------------------
-Function M1DataControl_ViewInitialize()
-	controls("optImportType").value = 1	
-End Function
-'----------End ThorcraftCode------
+Function this_initialize(sender, e)
+	includeScript "vbsCabinetVisionByRoomImport"
+	includeScript "vbsUpdateRevisedPrice"
+
+	controls("optImportType").ValueString = 1	
+end function
+
