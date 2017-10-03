@@ -63,48 +63,66 @@ Function chkBuilderCredit_ValueChanged(sender, e)
 	End If	
 End Function
 
-Function UpdateCustomerName()
+Function UpdateCustomerName(ByVal QuoteID, ByVal OrganizationLocationID, ByVal LocationID)
 	Dim rsCustLookup
 	Set rsCustLookup = CreateObject("ADODB.Recordset")
 	rsCustLookup.Open "	select cmlName " & _
 										"	from OrganizationLocations " & _
-										"	where cmlOrganizationID = " & App.Convert.StringToSql(controls("txtQmpShipOrganizationID").Value) & _
-										" 	 and cmlLocationID = " & App.Convert.StringToSql(controls("txtQmpShipLocationID").value), _
+										"	where cmlOrganizationID = " & App.Convert.StringToSql(OrganizationLocationID) & _
+										" 	 and cmlLocationID = " & App.Convert.StringToSql(LocationID), _
 											Connection,adOpenStatic,adLockReadOnly,adCmdText
 	If not rsCustLookup.EOF Then
-		Controls("txtuqmpCustomerName").Value = rsCustLookup.Fields("cmlName").Value
-	End If
+		dim rsQuote
+		set rsQuote = CreateObject("ADODB.Recordset")
+		rsQuote.open	"	select qmpQuoteID, uqmpCustomerName from Quotes " & _
+									"	where qmpQuoteID = " & App.Convert.StringToSql(QuoteID), _
+									Connection,adOpenStatic,adLockReadOnly,adCmdText
+		if not rsQuote.EOF then
+			if rsQuote.fields("uqmpCustomerName").value <> rsCustLookup.fields("cmlName").value then 
+				rsQuote.fields("uqmpCustomerName").value = rsCustLookup.fields("cmlName").value
+				rsQuote.UpdateBatch
+			end if
+			
+		end if	
+	end if
+
 	rsCustLookup.Close
 
 end function
 		
-Function M1DataControl_SaveDataStarted(sender, e)
+Function M1DataControl_SaveDataCompleted(sender, e)
 	if trim(controls("txtqmpQuoteID").value) <> "" then
-		UpdateCustomerName
-		UpdateProjectOnQuoteLines
+		UpdateCustomerName	controls("txtQmpQuoteID").value, _
+												controls("txtQmpShipOrganizationID").Value, _
+												controls("txtQmpShipLocationID").value
+		UpdateProjectOnQuoteLines controls("txtqmpQuoteID").value, controls("txtQmpProjectID").value
+		this.OnDataChanged(3)
 	end if
 End Function
 	
 Function M1DataControl_RecordChange(sender, e)
 	if trim(controls("txtqmpQuoteID").value) <> "" then
-		UpdateCustomerName
-		UpdateProjectOnQuoteLines
+		UpdateCustomerName	controls("txtQmpQuoteID").value, _
+												controls("txtQmpShipOrganizationID").Value, _
+												controls("txtQmpShipLocationID").value
+		UpdateProjectOnQuoteLines controls("txtqmpQuoteID").value, controls("txtQmpProjectID").value
+		this.OnDataChanged(3)
 	end if
 End Function
 	
-function UpdateProjectOnQuoteLines() 
+function UpdateProjectOnQuoteLines(ByVal QuoteID, ByVal ProjectID) 
 	
 	dim rsQuoteLines
 	Set rsQuoteLines = CreateObject("ADODB.Recordset")
 		
 	rsQuoteLines.Open "	select qmlQuoteID, qmlQuoteLineID, qmlProjectID " & _
 										"	from QuoteLines	" & _
-										"	where qmlQuoteID = " & app.convert.NumberToSql(controls("txtqmpQuoteID").value) & _
+										"	where qmlQuoteID = " & app.convert.NumberToSql(QuoteID) & _
 										"	order by qmlQuoteLineID", _
 										Connection,adOpenStatic,adLockReadOnly,adCmdText
 	if not rsQuoteLines.EOF then
 		do while not rsQuotelines.EOF
-			rsQuotelines.Fields("qmlProjectID").value = trim(controls("txtQmpProjectID").value)
+			rsQuotelines.Fields("qmlProjectID").value = ProjectID
 			rsQuotelines.MoveNext()
 		loop
 		rsQuoteLines.UpdateBatch
