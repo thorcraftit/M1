@@ -88,7 +88,7 @@ function UpdateProjectOnLinkedJobs (ByVal SalesOrderID, ByVal ProjectID)
 
 end function 
 
-Function M1DataControl_SaveDataCompleted(sender, e)
+Function M1DataControl_Validate(sender, e)
 	if trim(controls("txtOmpSalesOrderID").value) <> "" then
 		UpdateCustomerName controls("txtOmpSalesOrderID").value, controls("txtOmpShipOrganizationID").value, controls("txtOmpShipLocationID").value
 	
