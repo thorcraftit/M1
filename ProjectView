@@ -1,0 +1,27 @@
+Function cmdMapAddress_Click(sender, e)
+
+	dim rsAddress
+	set rsAddress = createobject("adodb.recordset")
+	rsAddress.open	"	select cmlAddressLine1 " & _
+															"				,cmlAddressLine2 " & _
+															"				,cmlCity " & _
+															"				,cmlState " & _
+															"				,cmlPostCode " & _
+															"				,cmlCountry " & _
+															"	from	 OrganizationLocations  " & _
+															"	where	cmlOrganizationID = " & app.convert.StringToSql(trim(controls("txtPrpOrganizationID").value)) & _
+															"		 and cmlLocationID = " & app.convert.StringToSql(trim(controls("txtPrpLocationID").value)), _
+															Connection, adOpenStatic, adLockReadOnly, adCmdText
+	
+	if rsAddress.EOF then 
+		msgbox "No location found"
+	else
+			Forms.Show.MapLocation	rsAddress.fields("cmlAddressLine1").value,  _ 
+															rsAddress.fields("cmlAddressLine2").value,  _
+															rsAddress.fields("cmlCity").value,  _
+															rsAddress.fields("cmlState").value,  _
+															rsAddress.fields("cmlPostCode").value,  _
+															rsAddress.fields("cmlCountry").value
+	end if
+	
+End Function
