@@ -90,7 +90,7 @@ Function UpdateCustomerName(ByVal QuoteID, ByVal OrganizationLocationID, ByVal L
 
 end function
 		
-Function M1DataControl_SaveDataCompleted(sender, e)
+Function M1DataControl_Validate(sender, e)
 	if trim(controls("txtqmpQuoteID").value) <> "" then
 		UpdateCustomerName	controls("txtQmpQuoteID").value, _
 												controls("txtQmpShipOrganizationID").Value, _
