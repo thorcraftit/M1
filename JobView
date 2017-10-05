@@ -1,0 +1,35 @@
+
+Function cmdMarkOfficeOpsComplete_Click(sender, e)
+	if trim(controls("txtJmpJobID").Value) = "" then
+		
+		msgbox	"No job selected", _
+						vbExclamation + vbOkOnly, "Error: No job"
+	
+	elseif trim(controls("txtJmpPartID").Value) <> "ROOM" then
+		
+		msgbox	"Cannot mark office operations complete on job " & trim(controls("txtjmpPartID").value) , _
+						vbExclamation + vbOkOnly, "Error: Job Type"
+	
+	else
+		dim rsJobOperations
+		set rsJobOperations = createobject("adodb.recordset")
+		rsJobOperations.Open	"	Select	jmoJobID, jmoJobAssemblyID, jmoJobOperationID, jmoProductionComplete " & _
+													"	from		JobOperations " & _
+													"	where 	jmoJobID = " & App.Convert.StringToSql(trim(controls("txtJmpJobID").Value)) & _
+													"			and jmoProcessID in ('384', '385', '386', '387') " & _
+													"			and jmoProductionComplete = 0 ", _
+													Connection,adOpenStatic,adLockReadOnly,adCmdText
+		
+		do while not rsJobOperations.EOF
+			rsJobOperations.fields("jmoProductionComplete").value = 1
+			rsJobOperations.MoveNext()
+		loop
+			
+		rsJobOperations.UpdateBatch()
+		rsJobOperations.close
+	
+		this.OnDataChanged(3)
+		msgbox "Success!"
+	end if
+End Function
+
