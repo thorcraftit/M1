@@ -1,0 +1,37 @@
+Function M1DataControl_SaveDataCompleted(sender, e)
+	if trim(controls("txtRmpReceiptID").value) <> "" then
+    UpdateSupplierName	controls("txtRmpReceiptID").value, _
+												controls("txtRmpSupplierOrganizationID").value, _
+												controls("txtRmpAPInvoiceLocationID").value
+	end if
+End Function
+
+Function UpdateSupplierName(ByVal ReceiptID, ByVal OrganizationID, ByVal LocationID)
+	Dim rsOrganization
+	Set rsOrganization = CreateObject("ADODB.Recordset")
+	rsOrganization.Open "	select cmlName " & _
+											"	from OrganizationLocations " & _
+											"	where cmlOrganizationID = " & App.Convert.StringToSql(OrganizationID) & _
+											" 	 and cmlLocationID = " & App.Convert.StringToSql(LocationID), _
+											Connection,adOpenStatic,adLockReadOnly,adCmdText
+	If not rsOrganization.EOF Then
+		dim rsReceipt
+		set rsReceipt = CreateObject("ADODB.Recordset")
+		rsReceipt.open	"	select	rmpReceiptID, urmpSupplierName " & _
+										"	from		Receipts " & _
+										"	where 	rmpReceiptID = " & App.Convert.StringToSql(ReceiptID), _
+										Connection,adOpenStatic,adLockReadOnly,adCmdText
+		if not rsReceipt.EOF then
+			if rsReceipt.fields("urmpSupplierName").value <> rsOrganization.fields("cmlName").value then 
+				rsReceipt.fields("urmpSupplierName").value = rsOrganization.fields("cmlName").value
+				rsReceipt.UpdateBatch
+				rsReceipt.close
+			end if
+		end if	
+	end if
+
+	rsOrganization.Close
+	this.OnDataChanged(3)
+end function
+		
+		
