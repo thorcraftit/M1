@@ -1,0 +1,35 @@
+Function M1DataControl_SaveDataCompleted(sender, e)
+	if trim(controls("txtPmpPurchaseOrderID").value) <> "" then
+    UpdateSupplierName	controls("txtPmpPurchaseOrderID").Value, _
+												controls("txtPmpSupplierOrganizationID").Value, _
+												controls("txtPmpAPInvoiceLocationID").Value
+	end if
+End Function
+
+Function UpdateSupplierName(ByVal PurchaseOrderID, ByVal OrganizationID, ByVal LocationID)
+	Dim rsOrganization
+	Set rsOrganization = CreateObject("ADODB.Recordset")
+	rsOrganization.Open "	select cmlName " & _
+											"	from OrganizationLocations " & _
+											"	where cmlOrganizationID = " & App.Convert.StringToSql(OrganizationID) & _
+											" 	 and cmlLocationID = " & App.Convert.StringToSql(LocationID), _
+											Connection,adOpenStatic,adLockReadOnly,adCmdText
+	If not rsOrganization.EOF Then
+		dim rsPurchaseOrder
+		set rsPurchaseOrder = CreateObject("ADODB.Recordset")
+		rsPurchaseOrder.open	"	select	pmpPurchaseOrderID, upmpSupplierName " & _
+													"	from		PurchaseOrders " & _
+													"	where 	pmpPurchaseOrderID = " & App.Convert.StringToSql(PurchaseOrderID), _
+													Connection,adOpenStatic,adLockReadOnly,adCmdText
+		if not rsPurchaseOrder.EOF then
+			if rsPurchaseOrder.fields("upmpSupplierName").value <> rsOrganization.fields("cmlName").value then 
+				rsPurchaseOrder.fields("upmpSupplierName").value = rsOrganization.fields("cmlName").value
+				rsPurchaseOrder.UpdateBatch
+				rsPurchaseOrder.close
+			end if
+		end if	
+	end if
+
+	rsOrganization.Close
+	this.OnDataChanged(3)
+end function
