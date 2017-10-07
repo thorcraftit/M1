@@ -1,0 +1,15 @@
+Function M1DataControl_SaveDataCompleted(sender, e)
+	
+	dim rsLead
+	set rsLead = createobject("adodb.recordset")
+	
+	rsLead.open "select lopLeadID, ulopLeadID from Leads where lopLeadID = " & app.convert.StringToSql(controls("txtLopLeadID").value), _
+							Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	if rsLead.fields("ulopLeadID").value <> rsLead.fields("lopLeadID").value then 
+		rsLead.fields("ulopLeadID").value = rsLead.fields("lopLeadID").value 
+	end if
+	
+	rsLead.UpdateBatch
+	rsLead.Close
+End Function
