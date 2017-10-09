@@ -1,0 +1,22 @@
+Function M1DataControl_SaveDataCompleted(sender, e)
+	UpdatePaintTotal
+	vbsSalesOrderTotals.UpdateSalesOrderCabinetTotal controls("txtOmlSalesOrderID").Value
+	vbsSalesOrderTotals.UpdateSalesOrderPaintTotal controls("txtOmlSalesOrderID").Value
+End Function
+
+function UpdatePaintTotal (SalesOrderID, SalesOrderLineID)
+	if controls("chkUomlPainted").value = true then
+		controls("txtUomlPaintedTotal").value = controls("txtOmlFullExtendedPriceBase").value
+	else
+			controls("txtUomlPaintedTotal").value = 0
+	end if	
+End function
+
+Function chkUomlPainted_UserChange(sender, e)
+	UpdatePaintTotal
+End Function
+
+Function this_Initialize(sender, e)
+	includescript "vbsSalesOrderTotals"
+	'controls("txtuomlPaintedTotal").ReadOnly = true
+End Function
