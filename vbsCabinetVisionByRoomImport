@@ -1,5 +1,4 @@
 'VBSCabinetVisionByRoomImport
-
 'Public Classes For Cabinet Vision Import Version 8
 'Public Function Class_Initialize() - This should never be ran, it is automatic when the Class is created
 'Public Function OpenDatabases() AS Boolean: Returns Database Opened - This should be ran first
@@ -12,31 +11,28 @@ Private ReportDBConnection
 Private MaterialsDBConnection
 Private AccessoriesDBConnection
 Private DatabasesOpen
-
 Private ErrorMessages
-
 Private CONNECT_REPORT_DATABASE
 Private CONNECT_MATERIALS_DATABASE
 Private CONNECT_ACCESSORIES_DATABASE
-
 Private MATERIAL_DATABASE
 Private ACCESSORIES_DATABASE
 Private REPORT_DATABASE
 Private DEBUG_MODE
 Private BUILD_MODE
 Private VERBOSE
-
 Private IMPORT_TO_ROOM
 Private IMPORT_TO_CABINET
 
 Public Sub Class_Initialize
+	
 	Set ReportDBConnection = CreateObject("ADODB.Connection")
 	Set MaterialsDBConnection = CreateObject("ADODB.Connection")
 	Set AccessoriesDBConnection = CreateObject("ADODB.Connection")
 	
 	BUILD_MODE = False
 	DEBUG_MODE = False
-	VERBOSE  = False
+	VERBOSE  = false
 	
 	ErrorMessages = Array()
 	
@@ -133,7 +129,7 @@ Public Function OpenDatabases()
 								  AND MaterialsDBConnection.State = 1_
 								  AND AccessoriesDBConnection.State = 1
 End Function
-
+				
 Private Function GetConnectionString(ConnectionType)
 	Set wshShell = CreateObject("WScript.Shell")
 	UserName = wshShell.ExpandEnvironmentStrings("%USERNAME%")
@@ -159,7 +155,7 @@ Private Function GetConnectionString(ConnectionType)
 	Set FileSystem = CreateObject("Scripting.FileSystemObject")
 
 	If Not FileSystem.FileExists(FilePath) Then 
-		If App.CommonDialogs.OpenFile(FilePath, _
+		If Forms.CommonDialogs.OpenFile(FilePath, _
 		                               FileType, _
 			                             1, _
 			                             FileName) Then
@@ -193,7 +189,7 @@ Private Function GetConnectionString(ConnectionType)
                         "Jet OLEDB:Compact Without Replica Repair=False;" & _
                         "Jet OLEDB:SFP=False;"
 End Function
-
+					
 Public Function ImportUnitOfIssue()
 	If Not DatabasesOpen Then 
 		Exit Function
@@ -216,9 +212,9 @@ Public Function ImportUnitOfIssue()
 		ImportUnitOfIssue = 0
 	End If
 	
-	App.MsgWindow "Done Importing Unit Of Issue. - " & rsuUnitOfIssue.RecordCount & " imported.", 5, Nothing
+	Forms.MessageWindow "Done Importing Unit Of Issue. - " & rsuUnitOfIssue.RecordCount & " imported.", 5, Nothing
 End Function
-
+			
 Private Function GetM1UnitOfIssue()
 	Set rsuUnitOfIssue = CreateObject("ADODB.RecordSet")
 	rsuUnitOfIssue.Open _ 
@@ -229,29 +225,31 @@ Private Function GetM1UnitOfIssue()
 	
 	Set GetM1UnitOfIssue = rsuUnitOfIssue
 End Function
-
+			
 Private Function GetUniqueUnitOfIssue()
 	SET GetUniqueUnitOfIssue = MaterialsDBConnection.Execute("	SELECT Index, [Unit of Issue] " & _
 	                                                         "	FROM   [Look Unit Of Issue] ")
 End Function
-					
+			
 Private Function UnitOfIssueExists(UnitOfIssueID)
 	UnitOfIssueExists = Not Connection.Execute("	SELECT 1 " & _
 					                                   "	FROM   uUnitOfIssue " & _
-						                                 "	WHERE  uciCabinetVisionID = " & App.ConvertNumberToSQL(UnitOfIssueID)).EOF
+						                                 "	WHERE  uciCabinetVisionID = " & App.Convert.NumberToSql(UnitOfIssueID)).EOF
 End Function
-
+			
 Private Function CreateUnitOfMeasure(ByRef rsuUnitOfIssue, CabinetVisionID, Description)
 	rsuUnitOfIssue.AddNew
 	App.BlankRecord rsuUnitOfIssue
-	rsuUnitOfIssue.Fields("uciUnitOfIssueID").value = App.GetNextIDForTable("uUnitOfIssue")
+'	rsuUnitOfIssue.Fields("uciUnitOfIssueID").value = App.GetNextIDForTable("uUnitOfIssue")
+'	rsuUnitOfIssue.Fields("uciUnitOfIssueID").value = App.GenerateNextIDForTable("uUnitOfIssue")
+	rsuUnitOfIssue.Fields("uciUnitOfIssueID").value = App.Ax("LegacyFunctions").GetNextIDForTable("uUnitOfIssue")
 	rsuUnitOfIssue.Fields("uciCabinetVisionID").value = CabinetVisionID
 	rsuUnitOfIssue.Fields("uciDescription").value = LEFT(Description, 50)
 	rsuUnitOfIssue.Fields("uciQuantityFormula").value = "Formula = 1"
 	rsuUnitOfIssue.Fields("uciCreatedBy").value = App.UserID
 	rsuUnitOfIssue.Fields("uciCreatedDate").value = Now()
 End Function
-
+			
 Private Function UpdateUnitOfIsssueRecords(ByRef rsuUnitOfIssue)	
 	On Error Resume Next
 	App.BeginTransaction
@@ -269,7 +267,7 @@ Private Function UpdateUnitOfIsssueRecords(ByRef rsuUnitOfIssue)
 	
 	On Error Goto 0
 End Function
-
+			
 Public Function ImportMaterials()
 	If Not DatabasesOpen Then 
 		Exit Function
@@ -277,11 +275,11 @@ Public Function ImportMaterials()
 	
 	Set rsuUnitOfIssue = GetUnitOfIssues()
 	Set rsuMaterials = GetMaterials()
-	Set rsCVMaterials = GetCVMaterials("%")
+	Set rsCVMaterials = GetAllCVMaterials()
 	
 	Do While Not rsCVMaterials.EOF
 		If Not MaterialExists(rsCVMaterials.Fields("ID").Value) Then
-			rsuUnitOfIssue.Filter = "uciCabinetVisionID = " & App.ConvertNumberToSQL(rsCVMaterials.Fields("UnitOfIssue").Value)
+			rsuUnitOfIssue.Filter = "uciCabinetVisionID = " & App.Convert.NumberToSql(rsCVMaterials.Fields("UnitOfIssue").Value)
 			If Not rsuUnitOfIssue.EOF Then
 				CreateMaterials rsuMaterials, rsCVMaterials.Fields("ID").Value, rsCVMaterials.Fields("Name").Value, _
 		                    rsuUnitOfIssue.Fields("uciUnitOfIssueID").Value, 1
@@ -310,9 +308,9 @@ Public Function ImportMaterials()
 		ImportMaterials = 0
 	End If
 	
-	App.MsgWindow "Done Importing Materials. - " & rsuMaterials.RecordCount & " imported.", 5, Nothing
+	Forms.MessageWindow "Done Importing Materials. - " & rsuMaterials.RecordCount & " imported.", 5, Nothing
 End Function
-
+			
 Private Function GetMaterials()
 	Set rsuMaterials = CreateObject("ADODB.RecordSet")
 	rsuMaterials.Open _ 
@@ -323,33 +321,35 @@ Private Function GetMaterials()
 	
 	Set GetMaterials = rsuMaterials
 End Function
-
+			
 Private Function GetAccessories()
 	Set GetAccessories = AccessoriesDBConnection.Execute( "	SELECT AAssemblyID, Nomenclature " & _
 	                                                      "	FROM   Accessories " & _
 	                                                      "	       INNER JOIN Assembly " & _
 	                                                      "	               ON (Accessories.AAssemblyID = Assembly.AssemblyID) ")
 End Function
-					
+			
 Private Function MaterialExists(MaterialID)
 	MaterialExists = Not Connection.Execute("	SELECT 1 " & _
 					                                "	FROM   uMaterials " & _
-						                              "	WHERE  ucmCabinetVisionID = " & App.ConvertNumberToSQL(MaterialID) & _
+						                              "	WHERE  ucmCabinetVisionID = " & App.Convert.NumberToSql(MaterialID) & _
 		                                      "	       AND ucmMaterialType = 1").EOF
 End Function
-					
+			
 Private Function AccessoryExists(MaterialID)
 	AccessoryExists = Not Connection.Execute("	SELECT 1 " & _
 					                                 "	FROM   uMaterials " & _
-						                               "	WHERE  ucmCabinetVisionID = " & App.ConvertNumberToSQL(MaterialID) & _
+						                               "	WHERE  ucmCabinetVisionID = " & App.Convert.NumberToSql(MaterialID) & _
 		                                       "	       AND ucmMaterialType = 2").EOF
 End Function
-
+			
 Private Function CreateMaterials(ByRef rsuMaterials, MaterialID, Description, _
 	                               UnitOfIssueID, MaterialType)
 	rsuMaterials.AddNew
 	App.BlankRecord rsuMaterials
-	rsuMaterials.Fields("ucmMaterialID").value = App.GetNextIDForTable("uMaterials")
+'	rsuMaterials.Fields("ucmMaterialID").value = App.GetNextIDForTable("uMaterials")
+'	rsuMaterials.Fields("ucmMaterialID").value = App.GenerateNextIDForTable("uMaterials")
+	rsuMaterials.Fields("ucmMaterialID").value = App.Ax("LegacyFunctions").GetNextIDForTable("uMaterials")
 	rsuMaterials.Fields("ucmCabinetVisionID").value = MaterialID	
 	rsuMaterials.Fields("ucmMaterialType").Value = MaterialType
 	rsuMaterials.Fields("ucmUnitOfIssueID").value = UnitOfIssueID
@@ -364,7 +364,7 @@ Private Function CreateMaterials(ByRef rsuMaterials, MaterialID, Description, _
 		rsuMaterials.Fields("ucmDescription").value = LEFT(Description, 50)
 	End If
 End Function
-
+			
 Private Function UpdateMaterialsRecords(ByRef rsuMaterials)	
 	On Error Resume Next
 	App.BeginTransaction
@@ -382,7 +382,7 @@ Private Function UpdateMaterialsRecords(ByRef rsuMaterials)
 	
 	On Error Goto 0
 End Function
-
+			
 Private Function GetUnitOfIssues()
 	Set rsuUnitOfIssue = CreateObject("ADODB.RecordSet")
 	rsuUnitOfIssue.Open _ 
@@ -392,10 +392,10 @@ Private Function GetUnitOfIssues()
 	
 	Set GetUnitOfIssues = rsuUnitOfIssue
 End Function
-
+			
 Public Function CreateProjectQuoteLines(QuoteID, ProjectID, ProjectAreaID, ImportType)
-	CreateProjectAreaAssembly ProjectID, ProjectAreaID
 	
+	CreateProjectAreaAssembly ProjectID, ProjectAreaID
 	QuoteLines = Array()
 	
 	Set rsRoomList = GetRoomList()
@@ -407,16 +407,16 @@ Public Function CreateProjectQuoteLines(QuoteID, ProjectID, ProjectAreaID, Impor
 			QuoteLineID = CreateQuoteLineItem(QuoteID, Array(1), ProjectID, _
 			                                  ProjectAreaID, "ROOM", rsRoomList.Fields("RoomName").Value)
 		End If
-		
+			
 		ImportRoomID QuoteID, QuoteLineID, rsRoomList.Fields("RoomNumber").Value, ImportType
-		
 		Redim Preserve QuoteLines(uBound(QuoteLines) + 1)
 		QuoteLines(uBound(QuoteLines)) = QuoteLineID
 		
 		rsRoomList.MoveNext
 	Loop
 	
-	CalculateAssemblies QuoteID
+	'No longer need to calculate assembly cost manually because M1 does it for us.
+	'CalculateAssemblies QuoteID
 	
 	If uBound(ErrorMessages) >= 0 Then
 		Msgbox "Quote " & trim(controls("txtQmpQuoteID").value) & vbnewline & _
@@ -425,7 +425,7 @@ Public Function CreateProjectQuoteLines(QuoteID, ProjectID, ProjectAreaID, Impor
 	End If
 	CreateProjectQuoteLines = QuoteLines
 End Function
-
+		
 Private Function CreateProjectAreaAssembly(ProjectID, ProjectAreaID)
 	If Trim(ProjectID) <> "" Then
 		If Not DoesProjectAreaExist(ProjectID, ProjectAreaID) Then
@@ -436,22 +436,22 @@ Private Function CreateProjectAreaAssembly(ProjectID, ProjectAreaID)
 		End If
 	End If
 End Function
-
+		
 Private Function DoesProjectAreaExist(ProjectID, ProjectAreaID)
 	DoesProjectAreaExist = Not Connection.Execute( _ 
 																								"	SELECT 1 " & _
 																								"	FROM   ProjectAreas " & _
-																								"	WHERE  praProjectID = " & App.AddQuotes(ProjectID) & _
-																								"	       AND praProjectAreaID = " & App.AddQuotes(ProjectAreaID)).EOF
+																								"	WHERE  praProjectID = " & App.Convert.StringToSql(ProjectID) & _
+																								"	       AND praProjectAreaID = " & App.Convert.StringToSql(ProjectAreaID)).EOF
 End Function
-
+		
 Private Function DoesProjectExist(ProjectID)
 	DoesProjectExist = Not Connection.Execute( _ 
 																						"	SELECT 1 " & _
 																						"	FROM   Projects " & _
-																						"	WHERE  prpProjectID = " & App.AddQuotes(ProjectID)).EOF
+																						"	WHERE  prpProjectID = " & App.Convert.StringToSql(ProjectID)).EOF
 End Function
-
+		
 Private Function CreateProject(ProjectID, ProjectDescription)
  Set rsProjects = CreateObject("ADODB.RecordSet")
  rsProjects.Open _
@@ -467,7 +467,7 @@ Private Function CreateProject(ProjectID, ProjectDescription)
  rsProjects.Fields("prpCreatedDate").value = Now()
  rsProjects.UpdateBatch
 End Function
-
+		
 Private Function CreateProjectArea(ProjectID, ProjectAreaID, ProjectDescription)
  Set rsProjectAreas = CreateObject("ADODB.RecordSet")
  rsProjectAreas.Open _
@@ -483,62 +483,60 @@ Private Function CreateProjectArea(ProjectID, ProjectAreaID, ProjectDescription)
  rsProjectAreas.Fields("praCreatedDate").value = Now()
  rsProjectAreas.UpdateBatch
 End Function
-
+		
 Private Function GetRoomList()
 	Set GetRoomList = ReportDBConnection.Execute( _
 																								"	SELECT * " & _
 																								"	FROM   Rooms")
 End Function
-
+		
 Private Function GetQuoteLineForRoom(QuoteID, ProjectID, ProjectAreaID, RoomName)
 	Set rsQuoteLines = Connection.Execute( _
 																				"	SELECT qmlQuoteLineID " & _
 																				"	FROM   QuoteLines " & _
-																				"	WHERE  qmlQuoteID =" & App.AddQuotes(QuoteID) & _
-																				"	       AND qmlProjectID = " & App.AddQuotes(ProjectID) & _
-																				"	       AND qmlProjectAreaID = " & App.AddQuotes(ProjectAreaID) & _
-																				"	       AND qmlPartShortDescription = " & App.AddQuotes(RoomName))
+																				"	WHERE  qmlQuoteID =" & App.Convert.StringToSql(QuoteID) & _
+																				"	       AND qmlProjectID = " & App.Convert.StringToSql(ProjectID) & _
+																				"	       AND qmlProjectAreaID = " & App.Convert.StringToSql(ProjectAreaID) & _
+																				"	       AND qmlPartShortDescription = " & App.Convert.StringToSql(RoomName))
 	If rsQuoteLines.EOF Then 
 		GetQuoteLineForRoom = 0
 	Else
 		GetQuoteLineForRoom = cInt(rsQuoteLines.Fields("qmlQuoteLineID").Value)
 	End If
 End Function
-
+		
 Private Function DeleteQuoteLineDetails(QuoteID, QuoteLineID)
 	Connection.Execute _
 		"	DELETE QuoteAssemblies " & _
-		"	WHERE  qmaQuoteID = " & App.AddQuotes(QuoteID) & _
-		"	       AND qmaQuoteLineID = " & App.ConvertNumberToSQL(QuoteLineID) & _
+		"	WHERE  qmaQuoteID = " & App.Convert.StringToSql(QuoteID) & _
+		"	       AND qmaQuoteLineID = " & App.Convert.NumberToSql(QuoteLineID) & _
 		"	       AND qmaQuoteAssemblyID <> 0"
 	
 	Connection.Execute _
 		"	DELETE QuoteOperations " & _
-		"	WHERE  qmoQuoteID = " & App.AddQuotes(QuoteID) & _
-		"	       AND qmoQuoteLineID = " & App.ConvertNumberToSQL(QuoteLineID) 
+		"	WHERE  qmoQuoteID = " & App.Convert.StringToSql(QuoteID) & _
+		"	       AND qmoQuoteLineID = " & App.Convert.NumberToSql(QuoteLineID) 
 	
 	Connection.Execute _
 		"	DELETE QuoteMaterials " & _
-		"	WHERE  qmmQuoteID = " & App.AddQuotes(QuoteID) & _
-		"	       AND qmmQuoteLineID = " & App.ConvertNumberToSQL(QuoteLineID) 
+		"	WHERE  qmmQuoteID = " & App.Convert.StringToSql(QuoteID) & _
+		"	       AND qmmQuoteLineID = " & App.Convert.NumberToSql(QuoteLineID) 
 	Connection.Execute _
 		"	DELETE uQuoteAssemblyCosts " & _
-		"	WHERE  uqcQuoteID = " & App.AddQuotes(QuoteID) & _
-		"	       AND uqcQuoteLineID = " & App.ConvertNumberToSQL(QuoteLineID) 
+		"	WHERE  uqcQuoteID = " & App.Convert.StringToSql(QuoteID) & _
+		"	       AND uqcQuoteLineID = " & App.Convert.NumberToSql(QuoteLineID) 
 End Function
-
+		
 Private Function ImportRoomID(QuoteID, QuoteLineID, RoomID, ImportType)
-
 	Select Case ImportType
 		CASE IMPORT_TO_ROOM
-			
 			QuoteAssemblyID = 0
 			QuoteMaterialID = 1
 			
 			ImportRoom QuoteID, QuoteLineID, QuoteAssemblyID, QuoteMaterialID, RoomID, ImportType
 		
 			ImportAccessories QuoteID, QuoteLineID, QuoteAssemblyID, QuoteMaterialID, RoomID	
-		
+'		
 			QuoteAssemblyID = 1
 			ImportMouldingAssemblies QuoteID, QuoteLineID, QuoteAssemblyID, RoomID
 			ImportMouldingMaterials QuoteID, QuoteLineID, 0, RoomID
@@ -554,6 +552,8 @@ Private Function ImportRoomID(QuoteID, QuoteLineID, RoomID, ImportType)
 			ImportMouldingAssemblies QuoteID, QuoteLineID, QuoteAssemblyID, RoomID
 			ImportMouldingMaterials QuoteID, QuoteLineID, 0, RoomID
 			ImportTopsTable QuoteID, QuoteLineID, 0, RoomID
+		case else
+			msgbox "No import type"
 	End Select
 End Function
 		
@@ -614,16 +614,16 @@ Private Function ImportCabinets(ByVal QuoteID, ByVal QuoteLineID, ByRef QuoteAss
 		rsCabinets.MoveNext()
 	loop
 End Function
-
+			
 Private Function GetCabinets(RoomID)
 	Set GetCabinets = ReportDBConnection.Execute("	SELECT * " & _
 												 											"	FROM   Cabinets " & _
 	                                             "         INNER JOIN Rooms " & _
 	                                             "                 ON ([Cabinets].[Room ID] = [Rooms].[RoomNumber]) " & _
-																							 "	WHERE   [Room ID] = " & App.ConvertNumberToSQL(RoomID) & _
+																							 "	WHERE   [Room ID] = " & App.Convert.NumberToSql(RoomID) & _
 												 											"	ORDER BY [Cabinet ID] ")
 End Function
-
+			
 Private Function CreateQuoteAssemblyLongDescriptionMap()
 	DescriptionMap = Array( _
 	                        Array("Description", "Description"), _
@@ -641,10 +641,10 @@ Private Function CreateQuoteAssemblyLongDescriptionMap()
 	                      )
 	CreateQuoteAssemblyLongDescriptionMap = DescriptionMap
 End Function
-
+			
 Private Function ImportQuoteOperations(ByRef rsQuoteOperations, ByVal QuoteID, ByVal QuoteLineID, _
 	                                     ByVal QuoteAssemblyID, ByVal RoomID, ByVal CabinetID, ByVal ImportType)
-	
+
 	Set rsLabor = GetAssemblyOperations(RoomID, CabinetID, ImportType)
 	
 	OperationID = 10
@@ -661,15 +661,15 @@ Private Function ImportQuoteOperations(ByRef rsQuoteOperations, ByVal QuoteID, B
 		rsLabor.MoveNext
 	Loop
 End Function
-
+			
 Private Function GetAssemblyOperations(RoomID, CabinetPartID, ImportType)
 	
 	select case ImportType 
 		Case IMPORT_TO_ROOM
 			CabinetWhereClause = "1=1"
-			RoomWhereClause = "Cabinets.[Room ID] = " & App.ConvertNumberToSQL(RoomID)
+			RoomWhereClause = "Cabinets.[Room ID] = " & App.Convert.NumberToSql(RoomID)
 		Case IMPORT_TO_Cabinet
-			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.ConvertNumberToSQL(CabinetPartID)
+			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.Convert.NumberToSql(CabinetPartID)
 			RoomWhereClause = "1=1"
 	end select
 
@@ -682,21 +682,21 @@ Private Function GetAssemblyOperations(RoomID, CabinetPartID, ImportType)
 																												 "	GROUP BY Parts.[Part ID], Parts.[Description] " & _
 																						             "	ORDER BY Parts.Description ")
 			
-End Function		
-
+End Function	
+				
 Private Function DoesWorkcenterIDExist(WorkcenterID)
 	DoesWorkcenterIDExist = Not Connection.Execute("	SELECT 1 " & _
 		                                             "	FROM   WorkCenters " & _
-		                                             "	WHERE  xawWorkCenterID = " & App.AddQuotes(WorkcenterID)).EOF
+		                                             "	WHERE  xawWorkCenterID = " & App.Convert.StringToSql(WorkcenterID)).EOF
 End Function
-
+			
 Private Function ImportQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByVal QuoteLineID, _
 	                                    ByVal QuoteAssemblyID, ByRef QuoteMaterialID, ByVal RoomID, _
 																			ByVal CabinetID, ImportType)
 	'QuoteMaterialID = 1
 	Set rsUnitOfIssue = GetUnitOfIssues()
 
-	if VERBOSE then
+	if VERBOSE then 
 		msgbox "ImportQuoteMaterials" & vbnewline & _
 					 "QuoteID: " & QuoteID & vbnewline & _
 					 "QuoteLineID: " & QuoteLineID & vbnewline & _
@@ -716,27 +716,42 @@ Private Function ImportQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
 										 QuoteLineID, QuoteAssemblyID, QuoteMaterialID, _
 									 	RoomID, CabinetID, ImportType
 End Function
-
+			
 Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssue, ByVal QuoteID, _
 	                                    ByVal QuoteLineID, ByVal QuoteAssemblyID, ByRef QuoteMaterialID, _
 	                                    ByVal RoomID, ByVal CabinetID, ByVal ImportType)
+	'asdf
 	Set rsCabinetMaterials = GetAssemblyMaterials(RoomID, CabinetID, ImportType)
-	
+
 	Const MATERIAL_TYPE = 1
-	Do While Not rsCabinetMaterials.EOF
-		if VERBOSE then	
+	Do While Not rsCabinetMaterials.EOF 
+			if VERBOSE then	
 				msgbox "ImportMaterialsTable loop " & vbnewline & _
 					 "QuoteID: " & QuoteID & vbnewline & _
 					 "QuoteLineID: " & QuoteLineID & vbnewline & _
 					 "QuoteAssemblyID: " & QuoteAssemblyID & vbnewline & _
 					 "QuoteMaterialID: " & QuoteMaterialID & vbnewline
-		end if
-			
+			end if
+
 		PartKeys = CabinetBuilderPartIDTranslation(rsCabinetMaterials.Fields("Material ID").Value, MATERIAL_TYPE)
 		
 		If Trim(PartKeys(0)) <> "" then
-			rsUnitOfIssue.Filter = "uciUnitOfIssueID = " & App.ConvertNumberToSQL(PartKeys(2))
-			
+'			rsUnitOfIssue.filter ("uciUnitOfIssueID = " & App.Convert.NumberToSql(PartKeys(2)))
+
+			' This is a hack
+			' but I could not for the life of me get the above rs.filter to work. 
+			' This appears to be an issue with M1v9?
+			found = FALSE
+			rsUnitOfIssue.MoveFirst
+			do while not found and not rsUnitOfIssue.EOF
+				if rsUnitOfIssue.fields("uciUnitOfIssueID").value = PartKeys(2) THEN
+					found = TRUE
+					exit do
+				end if
+				rsUnitOfIssue.MoveNext
+			Loop
+			' end hack
+
 			Set rsCVMaterials = GetCVMaterials(rsCabinetMaterials.Fields("Material ID").Value)
 			Set rsCVSheet = GetCVSheet(rsCVMaterials.Fields("Sheet").Value)
 			
@@ -744,6 +759,7 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 				QuantityPerAssembly = CalculateQuantityPerAssembly(rsCVMaterials, rsCVSheet, rsCabinetMaterials, _
 				                                                   rsUnitOfIssue.Fields("uciQuantityFormula").Value)
 			Else
+				msgbox "No UOI found"
 				QuantityPerAssembly = 0
 			End If
 			
@@ -762,6 +778,7 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 				                                         True, 0, True, FilterByName) Then
 				QuoteMaterialID = QuoteMaterialID + 1
 			End If
+			
 		Else
 			set CVMaterial = GetCVMaterials(rsCabinetMaterials.Fields("Material ID").Value)	
 			AddErrorMessage trim(CVMaterial.fields("Name").value) & ", " & _
@@ -772,15 +789,15 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 		rsCabinetMaterials.MoveNext
 	Loop
 End Function
-
+				
 Private Function GetAssemblyMaterials(RoomID, CabinetID, ImportType)
 	
 	select case ImportType 
 		Case IMPORT_TO_ROOM
 			CabinetWhereClause = "1=1"
-			RoomWhereClause = "Cabinets.[Room ID] = " & App.ConvertNumberToSQL(RoomID)
+			RoomWhereClause = "Cabinets.[Room ID] = " & App.Convert.NumberToSql(RoomID)
 		Case IMPORT_TO_CABINET
-			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.ConvertNumberToSQL(CabinetID)
+			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.Convert.NumberToSql(CabinetID)
 			RoomWhereClause = "1=1"
 	end select
 	
@@ -793,7 +810,7 @@ Private Function GetAssemblyMaterials(RoomID, CabinetID, ImportType)
 																												"					AND Parts.[Material ID] > 0 "& _
 													                              "	        AND Parts.BuyOut = False ")
 End Function
-
+				
 Private Function ImportDoorsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssue, ByVal QuoteID, _
 	                                ByVal QuoteLineID, ByVal QuoteAssemblyID, ByRef QuoteMaterialID, _
 	                                ByVal RoomID, ByVal CabinetID, ByVal ImportType)
@@ -808,46 +825,46 @@ Private Function ImportDoorsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssue, B
 		rsDoors.MoveNext
 	Loop
 End Function
-
+				
 Private Function GetAssemblyDoors(RoomID, CabinetID, ImportType)
 	
 	select case ImportType 
 		Case IMPORT_TO_ROOM
 			CabinetWhereClause = "1=1"
-			RoomWhereClause = "Cabinets.[Room ID] = " & App.ConvertNumberToSQL(RoomID)
+			RoomWhereClause = "Cabinets.[Room ID] = " & App.Convert.NumberToSql(RoomID)
 		Case IMPORT_TO_CABINET
-			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.ConvertNumberToSQL(CabinetID)
+			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.Convert.NumberToSql(CabinetID)
 			RoomWhereClause = "1=1"
 	end select
-	
-		Set GetAssemblyDoors = ReportDBConnection.Execute("	SELECT   Doors.[Material Schedule] " & _
-																											"					,Doors.[Finger Pull] " & _
-																											"					,Doors.[Edge Profile] " & _
-																											"					,Doors.[Raised Panel Detail] " & _
-																											"					,Doors.[Height String] " & _
-																											"					,Doors.[Width String] " & _
-																											"					,Doors.Cost " & _
-																											"					,Doors.[Door Num] " & _
-																											"					,count(Doors.[Cabinet ID]) as QuantityPerAssembly " & _
-								          	 												 "	FROM    (Doors " & _
-																											"	        LEFT JOIN  Parts " & _
-																											"	                ON (Doors.[Door ID] = Parts.[Door ID] " & _
-																											"	                    AND Parts.BuyOut = True)) " & _
-																											"					LEFT JOIN Cabinets " & _
-																											"									ON Doors.[Cabinet ID] = Cabinets.[Cabinet ID] " & _
-		                                                  "	WHERE " & RoomWhereClause & _
-																											"					AND " & CabinetWhereClause & _
-																											"          AND Parts.[Door ID] IS NOT NULL " & _
-																											"	GROUP BY Doors.[Door Num] " & _
-																											"					,Doors.[Material Schedule] " & _
-																											"					,Doors.[Finger Pull] " & _
-																											"					,Doors.[Edge Profile] " & _
-																											"					,Doors.[Raised Panel Detail] " & _
-																											"					,Doors.[Height String] " & _
-																											"					,Doors.[Width String] " & _
-																											"					,Doors.Cost" )
-End Function
 
+	Set GetAssemblyDoors = ReportDBConnection.Execute("	SELECT   Doors.[Material Schedule] " & _
+																										"					,Doors.[Finger Pull] " & _
+																										"					,Doors.[Edge Profile] " & _
+																										"					,Doors.[Raised Panel Detail] " & _
+																										"					,Doors.[Height String] " & _
+																										"					,Doors.[Width String] " & _
+																										"					,Doors.Cost " & _
+																										"					,Doors.[Door Num] " & _
+																										"					,count(Doors.[Cabinet ID]) as QuantityPerAssembly " & _
+							          	 												 "	FROM    (Doors " & _
+																										"	        LEFT JOIN  Parts " & _
+																										"	                ON (Doors.[Door ID] = Parts.[Door ID] " & _
+																										"	                    AND Parts.BuyOut = True)) " & _
+																										"					LEFT JOIN Cabinets " & _
+																										"									ON Doors.[Cabinet ID] = Cabinets.[Cabinet ID] " & _
+	                                                  "	WHERE " & RoomWhereClause & _
+																										"					AND " & CabinetWhereClause & _
+																										"          AND Parts.[Door ID] IS NOT NULL " & _
+																										"	GROUP BY Doors.[Door Num] " & _
+																										"					,Doors.[Material Schedule] " & _
+																										"					,Doors.[Finger Pull] " & _
+																										"					,Doors.[Edge Profile] " & _
+																										"					,Doors.[Raised Panel Detail] " & _
+																										"					,Doors.[Height String] " & _
+																										"					,Doors.[Width String] " & _
+																										"					,Doors.Cost" )
+End Function
+				
 Private Function CreateDoorMaterialLongDescriptionMap()
 	DescriptionMap = Array( _
 													Array("Material Schedule", "Material Schedule"), _
@@ -859,7 +876,7 @@ Private Function CreateDoorMaterialLongDescriptionMap()
 	                      )
 	CreateDoorMaterialLongDescriptionMap = DescriptionMap
 End Function
-
+				
 Private Function ImportDrawersTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssue, ByVal QuoteID, _
 	                                	ByVal QuoteLineID, ByVal QuoteAssemblyID, ByRef QuoteMaterialID, _
 	                                	ByVal RoomID, ByVal CabinetID, ByVal ImportType)
@@ -881,9 +898,9 @@ Private Function GetAssemblyDrawers(RoomID, CabinetID, ImportType)
 	select case ImportType 
 		Case IMPORT_TO_ROOM
 			CabinetWhereClause = "1=1"
-			RoomWhereClause = "Cabinets.[Room ID] = " & App.ConvertNumberToSQL(RoomID)
+			RoomWhereClause = "Cabinets.[Room ID] = " & App.Convert.NumberToSql(RoomID)
 		Case IMPORT_TO_CABINET
-			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.ConvertNumberToSQL(CabinetID)
+			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.Convert.NumberToSql(CabinetID)
 			RoomWhereClause = "1=1"
 	end select
 	
@@ -902,8 +919,8 @@ Private Function GetAssemblyDrawers(RoomID, CabinetID, ImportType)
 																											"							select left(note,255) as DrawerCode " & _
 																											"										,ParentID " & _
 																											"							from notes " & _
-																											"							where ParentType=6 " & _
-																											"								and Prompt = " & app.addquotes("_DWRCode") & _
+																											"							where ParentType = 6 " & _
+																											"								and Prompt = '" & cstr("_DWRCode") & "'" & _
 																											"						) NoteTable " & _ 
 																											"				ON drawers.[Drawer ID] = NoteTable.[ParentID] " & _
 		                                                  "	WHERE " & RoomWhereClause & _
@@ -917,7 +934,7 @@ Private Function GetAssemblyDrawers(RoomID, CabinetID, ImportType)
 																											"					,Drawers.[Cost] " & _
 																											"					,NoteTable.DrawerCode")
 End Function
-
+				
 Private Function CreateQuoteMaterialPurchasedDrawersLongDescriptionMap()
 	DescriptionMap = Array( _
 	                        Array("Material Schedule", "MaterialSchedule"), _
@@ -929,7 +946,7 @@ Private Function CreateQuoteMaterialPurchasedDrawersLongDescriptionMap()
 	
 	CreateQuoteMaterialPurchasedDrawersLongDescriptionMap = DescriptionMap
 End Function
-
+				
 Private Function ImportRollOutTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssue, ByVal QuoteID, _
 	                                	ByVal QuoteLineID, ByVal QuoteAssemblyID, ByRef QuoteMaterialID, _
 	                                	ByVal RoomID, ByVal CabinetID, ByVal ImportType)
@@ -944,7 +961,7 @@ Private Function ImportRollOutTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssue,
 		rsRollouts.MoveNext
 	Loop
 End Function
-
+				
 Private Function CreateQuoteMaterialRollOutLongDescriptionMap()
 	DescriptionMap = Array( _
 	                        Array("Width", "Width String"), _
@@ -954,15 +971,15 @@ Private Function CreateQuoteMaterialRollOutLongDescriptionMap()
 	
 	CreateQuoteMaterialRollOutLongDescriptionMap = DescriptionMap
 End Function
-
+				
 Private Function GetAssemblyRollOuts(RoomID, CabinetID, ImportType)
 	
 		select case ImportType 
 		Case IMPORT_TO_ROOM
 			CabinetWhereClause = "1=1"
-			RoomWhereClause = "Cabinets.[Room ID] = " & App.ConvertNumberToSQL(RoomID)
+			RoomWhereClause = "Cabinets.[Room ID] = " & App.Convert.NumberToSql(RoomID)
 		Case IMPORT_TO_CABINET
-			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.ConvertNumberToSQL(CabinetID)
+			CabinetWhereClause = "Parts.[Cabinet ID] = " & App.Convert.NumberToSql(CabinetID)
 			RoomWhereClause = "1=1"
 	end select
 
@@ -982,7 +999,7 @@ Private Function GetAssemblyRollOuts(RoomID, CabinetID, ImportType)
 																											"										,ParentID " &  _
 																											"							from notes " & _
 																											"							where ParentType=7 " & _
-																											"								and Prompt = " & app.addquotes("_pulloutCode") & _
+																											"								and Prompt = '" & cstr("_pulloutCode") & "'" & _
 																											"						) NoteTable " & _ 
 																											"				ON rollouts.[rollout ID] = NoteTable.[ParentID] " & _
 		                                                  "	WHERE " & RoomWhereClause & _
@@ -997,7 +1014,7 @@ Private Function GetAssemblyRollOuts(RoomID, CabinetID, ImportType)
 																											"					,NoteTable.RolloutCode")
 	
 End Function
-
+				
 Private Function ImportAccessories(ByVal QuoteID, ByVal QuoteLineID, ByVal QuoteAssemblyID, ByVal QuoteMaterialID, ByVal RoomID)
 	Set rsAccessories = GetAccessoriesFromReport(RoomID)
 	Set rsQuoteMaterials = GetQuoteMaterials()
@@ -1007,8 +1024,8 @@ Private Function ImportAccessories(ByVal QuoteID, ByVal QuoteLineID, ByVal Quote
 	
 	Do While Not rsAccessories.EOF 
 		MaterialPartID = CabinetBuilderPartIDTranslation(rsAccessories.Fields("AAssemblyID").Value, ACCESSORIES_TYPE)
-		app.DebugLog "ACCESSORIES - " & Join(MaterialPartID, "|"), DEBUG_MODE
-		If App.PartFunctions.DoesPartRevisionExist(MaterialPartID(0), MaterialPartID(1)) Then
+		'app.DebugLog "ACCESSORIES - " & Join(MaterialPartID, "|"), DEBUG_MODE
+		If App.Ax("PartFunctions").DoesPartRevisionExist(MaterialPartID(0), MaterialPartID(1)) Then
 			
 			CreateQuoteMaterialsWithQuantityFormula rsQuoteMaterials, QuoteID, QuoteLineID, _
 																								 0, QuoteMaterialID, MaterialPartID(0), _
@@ -1024,7 +1041,7 @@ Private Function ImportAccessories(ByVal QuoteID, ByVal QuoteLineID, ByVal Quote
 	
 	rsQuoteMaterials.UpdateBatch
 End Function
-
+			
 Private Function GetAccessoriesFromReport(ByVal RoomID)
 	Set GetAccessoriesFromReport = ReportDBConnection.Execute("	SELECT AAssemblyID, RoomNumber, RoomName, " & _
 	                                                          "	       AQuantity, [AList Price], Access, [ACabinet ID] " & _
@@ -1032,9 +1049,9 @@ Private Function GetAccessoriesFromReport(ByVal RoomID)
                                                             "         INNER JOIN Rooms " & _
 	                                                          "	               ON (Accessories.ARoom = Rooms.RoomNumber) " & _
 			                                                      "	WHERE  [ACatalog Name] = 'Accessories.cvc'" & _
-																														"	       AND ARoom = " & App.ConvertNumberToSQL(RoomID))
+																														"	       AND ARoom = " & App.Convert.NumberToSql(RoomID))
 End Function
-
+			
 Private Function ImportMouldingAssemblies(ByVal QuoteID, ByVal QuoteLineID, ByRef QuoteAssemblyID, ByVal RoomID)
 	Set rsMoulding = GetMouldings(RoomID)
 	Set rsQuoteAssemblies = GetQuoteAssemblies()
@@ -1043,14 +1060,14 @@ Private Function ImportMouldingAssemblies(ByVal QuoteID, ByVal QuoteLineID, ByRe
 	Do While Not rsMoulding.EOF
 		MouldingPartID = CabinetBuilderPartIDTranslation(Trim(rsMoulding.Fields("ProfileID").Value) & _
 		                                                 Trim(rsMoulding.Fields("Material ID").Value), MOULDING_TYPE)
-		If App.PartFunctions.DoesPartRevisionExist(MouldingPartID(0), MouldingPartID(1)) Then
+		If App.Ax("PartFunctions").DoesPartRevisionExist(MouldingPartID(0), MouldingPartID(1)) Then
 			If IsManufactured(MouldingPartID(0)) Then
 				CreateQuoteAssemblies rsQuoteAssemblies, QuoteID, QuoteLineID, _
 			                      	QuoteAssemblyID, MouldingPartID(0), MouldingPartID(1), "", "", _
 				                      cDbl(rsMoulding.Fields("LinealTotal").Value) / 12, _
 				                      rsMoulding.Fields("RoomNumber").Value, rsMoulding.Fields("RoomName").Value
 				rsQuoteAssemblies.UpdateBatch
-				App.QuoteFunctions.GetMethod QuoteID, QuoteLineID, QuoteAssemblyID, MouldingPartID(0), MouldingPartID(1), True
+				App.Ax("QuoteFunctions").GetMethod QuoteID, QuoteLineID, QuoteAssemblyID, MouldingPartID(0), MouldingPartID(1), True
 				QuoteAssemblyID = QuoteAssemblyID + 1
 			End If
 		Else
@@ -1064,17 +1081,19 @@ Private Function ImportMouldingAssemblies(ByVal QuoteID, ByVal QuoteLineID, ByRe
 		rsMoulding.MoveNext
 	Loop
 End Function
-
+				
 Private Function ImportMouldingMaterials(ByVal QuoteID, ByVal QuoteLineID, ByRef QuoteAssemblyID, ByVal RoomID)
 	Set rsMoulding = GetMouldings(RoomID)
 	Set rsQuoteMaterials = GetQuoteMaterials()
-	QuoteMaterialID = App.GetNextIDForTable("QuoteMaterials", Array(QuoteID, QuoteLineID, QuoteAssemblyID))
+'	QuoteMaterialID = App.GetNextIDForTable("QuoteMaterials", Array(QuoteID, QuoteLineID, QuoteAssemblyID))
+'	QuoteMaterialID = App.GenerateNextIDForTable("QuoteMaterials", Array(QuoteID, QuoteLineID, QuoteAssemblyID))
+	QuoteMaterialID = App.Ax("LegacyFunctions").GetNextIDForTable("QuoteMaterials", Array(QuoteID, QuoteLineID, QuoteAssemblyID))
 	Const MOULDING_TYPE = 7
 	
 	Do While Not rsMoulding.EOF
 		MouldingPartID = CabinetBuilderPartIDTranslation(Trim(rsMoulding.Fields("ProfileID").Value) & _
 		                                                 Trim(rsMoulding.Fields("Material ID").Value), MOULDING_TYPE)
-		If App.PartFunctions.DoesPartRevisionExist(MouldingPartID(0), MouldingPartID(1)) Then
+		If App.Ax("PartFunctions").DoesPartRevisionExist(MouldingPartID(0), MouldingPartID(1)) Then
 			If Not IsManufactured(MouldingPartID(0)) Then
 				If CreateQuoteMaterialsWithQuantityFormula(rsQuoteMaterials, QuoteID, QuoteLineID, _
 																									 QuoteAssemblyID, QuoteMaterialID, MouldingPartID(0), _
@@ -1095,7 +1114,7 @@ Private Function ImportMouldingMaterials(ByVal QuoteID, ByVal QuoteLineID, ByRef
 	Loop
 	rsQuoteMaterials.UpdateBatch
 End Function
-
+					
 Private Function GetMouldings(RoomID)
 		SET GetMouldings = ReportDBConnection.Execute("	SELECT ProfileID, [Material ID], " & _
 																								"						RoomNumber, RoomName, sum([Lineal Total]) as LinealTotal " & _
@@ -1104,22 +1123,22 @@ Private Function GetMouldings(RoomID)
 	                                              "	               ON (Molding.[Room ID] = Rooms.[RoomNumber]) " & _
 	                                              "	WHERE  Type <> 2 " & _
 	                                              "	       AND Type <> 10 " & _
-																								"	       AND Molding.[Room ID] = " & App.ConvertNumberToSQL(RoomID) & _
+																								"	       AND Molding.[Room ID] = " & App.Convert.NumberToSql(RoomID) & _
 																								"	GROUP BY ProfileID, [Material ID], RoomNumber, RoomName ")
 End Function
-
+					
 Private Function IsManufactured(PartID)
 	Manufactured = False
-	If App.PartFunctions.DoesPartExist(PartID) Then
+	If App.Ax("PartFunctions").DoesPartExist(PartID) Then
 		Const PART_MANUFACTURED = 2
 		Manufactured = cInt(Connection.Execute("	SELECT impPartType " & _
 		                                       "	FROM   Parts " & _
-		                                       "	WHERE  impPartID = " & App.AddQuotes(PartID)).Fields("impPartType").Value) _
+		                                       "	WHERE  impPartID = " & App.Convert.StringToSql(PartID)).Fields("impPartType").Value) _
 											= PART_MANUFACTURED
 	End If
 	IsManufactured = Manufactured
 End Function
-
+					
 Private Function ImportTopsTable(ByVal QuoteID, ByVal QuoteLineID, ByVal QuoteAssemblyID, ByVal RoomID)
 	Set rsQuoteMaterials = GetQuoteMaterials()
 	Set rsPurchasedTops = GetPurchaseTops(RoomID)
@@ -1127,7 +1146,9 @@ Private Function ImportTopsTable(ByVal QuoteID, ByVal QuoteLineID, ByVal QuoteAs
 	
 	Const TOPS_TYPE = 6
 	
-	QuoteMaterialID = App.GetNextIDForTable("QuoteMaterials", Array(QuoteID, QuoteLineID, QuoteAssemblyID))
+'	QuoteMaterialID = App.GetNextIDForTable("QuoteMaterials", Array(QuoteID, QuoteLineID, QuoteAssemblyID))
+'	QuoteMaterialID = App.GenerateNextIDForTable("QuoteMaterials", Array(QuoteID, QuoteLineID, QuoteAssemblyID))
+	QuoteMaterialID = App.Ax("LegacyFunctions").GetNextIDForTable("QuoteMaterials", Array(QuoteID, QuoteLineID, QuoteAssemblyID))
 	
 	Do While Not rsPurchasedTops.EOF 
 		PartKeys = CabinetBuilderPartIDTranslation(rsPurchasedTops.Fields("Material ID").Value, TOPS_TYPE)
@@ -1157,7 +1178,7 @@ Private Function ImportTopsTable(ByVal QuoteID, ByVal QuoteLineID, ByVal QuoteAs
 	
 	rsQuoteMaterials.UpdateBatch
 End Function
-			
+				
 Private Function GetPurchaseTops(ByVal RoomID)
 	Set GetPurchaseTops = ReportDBConnection.Execute("	SELECT  Tops.*, Parts.Cost " & _
 							           													"	FROM    Tops " & _
@@ -1165,9 +1186,9 @@ Private Function GetPurchaseTops(ByVal RoomID)
 	                                                 "	                ON Tops.[Top ID] = Parts.[Top ID]" & _
 	                                                 "	WHERE   Parts.[Part ID] = 34 " & _
 																									 " 				 AND Parts.Cost <> 0" & _
-																									 "	        AND Tops.[Room ID] = " & App.ConvertNumberToSQL(RoomID))
+																									 "	        AND Tops.[Room ID] = " & App.Convert.NumberToSql(RoomID))
 End Function
-
+				
 Private Function CreateQuoteMaterialTopLongDescriptionMap()
 	DescriptionMap = Array( _
 	                        Array("Countertop Room", "Room ID"), _
@@ -1184,7 +1205,7 @@ Private Function CreateQuoteMaterialTopLongDescriptionMap()
 	
 	CreateQuoteMaterialTopLongDescriptionMap = DescriptionMap
 End Function
-
+				
 Private Function CreateQuoteMaterialTopLongDescriptionMaterialMap()
 	DescriptionMap = Array( _
 	                        Array("Material", "Name") _ 
@@ -1192,7 +1213,7 @@ Private Function CreateQuoteMaterialTopLongDescriptionMaterialMap()
 	
 	CreateQuoteMaterialTopLongDescriptionMaterialMap = DescriptionMap
 End Function
-
+				
 Private Function CreateQuoteMaterialTopLongDescriptionProfileMap()
 	DescriptionMap = Array( _
 	                        Array("Profile Name", "Name") _ 
@@ -1200,25 +1221,25 @@ Private Function CreateQuoteMaterialTopLongDescriptionProfileMap()
 	
 	CreateQuoteMaterialTopLongDescriptionProfileMap = DescriptionMap
 End Function
-
+				
 Private Function CalculateAssemblies(ByVal QuoteID)
 	DuplicateQuoteAssembliesToQuoteLines QuoteID
 	
-	App.QuoteFunctions.RefreshMatrix("Quotes.qmpQuoteID = " & App.AddQuotes(QuoteID))
+	App.Ax("Quote").RefreshMatrix("Quotes.qmpQuoteID = " & App.Convert.StringToSql(QuoteID))
 	
 	CopyQuoteQuantitiesToCustomTable QuoteID
 	
 	DeleteTemporaryQuoteLines QuoteID
 End Function
-
+				
 Private Function GetAllQuoteSubAssemblies(QuoteID)
 	Set GetAllQuoteSubAssemblies = Connection.Execute( _
 													"	SELECT * " & _
 													"	FROM   QuoteAssemblies " & _
-													"	WHERE  qmaQuoteID = " & App.AddQuotes(QuoteID) & _
+													"	WHERE  qmaQuoteID = " & App.Convert.StringToSql(QuoteID) & _
 													"	       AND uqmaImported <> 0")
 End Function
-
+				
 Private Sub DuplicateQuoteAssembliesToQuoteLines(QuoteID)
 	Set rsQuoteAssemblies = GetAllQuoteSubAssemblies(QuoteID)
 	
@@ -1226,13 +1247,13 @@ Private Sub DuplicateQuoteAssembliesToQuoteLines(QuoteID)
 		PartID = "TEMP:" & rsQuoteAssemblies.Fields("qmaQuoteLineID").Value & ":" & _
 						 rsQuoteAssemblies.Fields("qmaQuoteAssemblyID").Value
 		QuoteLineID = CreateTempQuoteLineItem(QuoteID, Array(rsQuoteAssemblies.fields("qmaQuantityPerParent").Value), PartID, "TEMP")
-		App.QuoteFunctions.GetQuoteMethod QuoteID, QuoteLineID, 0, _
+		App.Ax("QuoteFunctions").GetQuoteMethod QuoteID, QuoteLineID, 0, _
 																			 QuoteID, rsQuoteAssemblies.Fields("qmaQuoteLineID").Value, _
 																			 True, rsQuoteAssemblies.Fields("qmaQuoteAssemblyID").Value
 		rsQuoteAssemblies.MoveNext
 	Loop
 End Sub
-
+		
 Private Sub CopyQuoteQuantitiesToCustomTable(QuoteID)
 	Set rsQuoteQuantities = GetTemporaryQuoteQuantities(QuoteID)
 	
@@ -1255,38 +1276,38 @@ Private Sub CopyQuoteQuantitiesToCustomTable(QuoteID)
 		
 		Connection.Execute _
 			"	DELETE uQuoteAssemblyCosts " & _
-			"	WHERE  uqcQuoteID = " & App.AddQuotes(rsuQuoteAssemblyCosts.Fields("uqcQuoteID").value) & _
-			"	       AND uqcQuoteLineID = " & App.ConvertNumberToSQL(rsuQuoteAssemblyCosts.Fields("uqcQuoteLineID").value) & _
-			"	       AND uqcQuoteAssemblyID = " & App.ConvertNumberToSQL(rsuQuoteAssemblyCosts.Fields("uqcQuoteAssemblyID").value) & _
-			"	       AND uqcQuoteAssemblyCostID = " & App.ConvertNumberToSQL(rsuQuoteAssemblyCosts.Fields("uqcQuoteAssemblyCostID").value)
+			"	WHERE  uqcQuoteID = " & App.Convert.StringToSql(rsuQuoteAssemblyCosts.Fields("uqcQuoteID").value) & _
+			"	       AND uqcQuoteLineID = " & App.Convert.NumberToSql(rsuQuoteAssemblyCosts.Fields("uqcQuoteLineID").value) & _
+			"	       AND uqcQuoteAssemblyID = " & App.Convert.NumberToSql(rsuQuoteAssemblyCosts.Fields("uqcQuoteAssemblyID").value) & _
+			"	       AND uqcQuoteAssemblyCostID = " & App.Convert.NumberToSql(rsuQuoteAssemblyCosts.Fields("uqcQuoteAssemblyCostID").value)
 		
 		rsuQuoteAssemblyCosts.Fields("uqcMaterialCost").value = cDbl(rsQuoteQuantities.Fields("qmqMaterialCost").Value)
 		rsuQuoteAssemblyCosts.Fields("uqcSubcontractCost").value = cDbl(rsQuoteQuantities.Fields("qmqSubcontractCost").Value)
 		
 		TotalCost = 0
 		
-		TotalCost = TotalCost + App.QuoteFunctions.CalculateMarkup(rsQuoteQuantities.Fields("qmlQuoteMarkupType").Value, _
+		TotalCost = TotalCost + App.Ax("QuoteFunctions").CalculateMarkup(rsQuoteQuantities.Fields("qmlQuoteMarkupType").Value, _
 		                                                            rsQuoteQuantities.Fields("qmqMaterialCost").Value, _
 		                                                            rsQuoteQuantities.Fields("qmqMaterialMarkupPercent").Value, _
 		                                                            5)
-		TotalCost = TotalCost + App.QuoteFunctions.CalculateMarkup(rsQuoteQuantities.Fields("qmlQuoteMarkupType").Value, _
+		TotalCost = TotalCost + App.Ax("QuoteFunctions").CalculateMarkup(rsQuoteQuantities.Fields("qmlQuoteMarkupType").Value, _
 		                                                            rsQuoteQuantities.Fields("qmqSubcontractCost").Value, _
 		                                                            rsQuoteQuantities.Fields("qmqSubcontractMarkupPercent").Value, _
 		                                                            5)
 		If QuotingMethod = LABOR_OVERHEAD Then
 			rsuQuoteAssemblyCosts.Fields("uqcLaborCost").value = cDbl(rsQuoteQuantities.Fields("qmqLaborCost").Value)
 			rsuQuoteAssemblyCosts.Fields("uqcOverheadCost").value = cDbl(rsQuoteQuantities.Fields("qmqOverheadCost").Value)
-			TotalCost = TotalCost + App.QuoteFunctions.CalculateMarkup(rsQuoteQuantities.Fields("qmlQuoteMarkupType").Value, _
+			TotalCost = TotalCost + App.Ax("QuoteFunctions").CalculateMarkup(rsQuoteQuantities.Fields("qmlQuoteMarkupType").Value, _
 			                                                            rsQuoteQuantities.Fields("qmqLaborCost").Value, _
 			                                                            rsQuoteQuantities.Fields("qmqLaborMarkupPercent").Value, _
 			                                                            5)
-			TotalCost = TotalCost + App.QuoteFunctions.CalculateMarkup(rsQuoteQuantities.Fields("qmlQuoteMarkupType").Value, _
+			TotalCost = TotalCost + App.Ax("QuoteFunctions").CalculateMarkup(rsQuoteQuantities.Fields("qmlQuoteMarkupType").Value, _
 			                                                            rsQuoteQuantities.Fields("qmqOverheadCost").Value, _
 			                                                            rsQuoteQuantities.Fields("qmqOverheadMarkupPercent").Value, _
 			                                                            5)
 		ElseIf QuotingMethod = QUOTING_RATE Then
 			rsuQuoteAssemblyCosts.Fields("uqcQuotingCost").value = cDbl(rsQuoteQuantities.Fields("qmqQuotingCost").Value)
-			TotalCost = TotalCost + App.QuoteFunctions.CalculateMarkup(rsQuoteQuantities.Fields("qmlQuoteMarkupType").Value, _
+			TotalCost = TotalCost + App.Ax("QuoteFunctions").CalculateMarkup(rsQuoteQuantities.Fields("qmlQuoteMarkupType").Value, _
 			                                                            rsQuoteQuantities.Fields("qmqQuotingCost").Value, _
 			                                                            rsQuoteQuantities.Fields("qmqQuotingMarkupPercent").Value, _
 			                                                            5)
@@ -1301,7 +1322,7 @@ Private Sub CopyQuoteQuantitiesToCustomTable(QuoteID)
 	
 	rsuQuoteAssemblyCosts.UpdateBatch
 End Sub
-
+		
 Private Function GetTemporaryQuoteQuantities(QuoteID)
 	Set GetTemporaryQuoteQuantities = Connection.Execute( _
 																	"	SELECT qmlPartID, qmlQuoteMarkupType, QuoteQuantities.* " & _
@@ -1309,52 +1330,55 @@ Private Function GetTemporaryQuoteQuantities(QuoteID)
 																	"	       INNER JOIN QuoteLines " & _
 																	"	               ON qmqQuoteID = qmlQuoteID " & _
 																	"	                  AND qmqQuoteLineID = qmlQuoteLineID " & _
-																	"	WHERE  qmqQuoteID = " & App.AddQuotes(QuoteID) & _
+																	"	WHERE  qmqQuoteID = " & App.Convert.StringToSql(QuoteID) & _
 																	"	       AND qmqQuoteLineID < 0")
 End Function
-
+		
 Private Function DeleteTemporaryQuoteLines(QuoteID)
 	Connection.Execute _
 		"	DELETE QuoteLines " & _
-		"	WHERE  qmlQuoteID = " & App.AddQuotes(QuoteID) & _
+		"	WHERE  qmlQuoteID = " & App.Convert.StringToSql(QuoteID) & _
 		"	       AND qmlQuoteLineID < 0"
 	Connection.Execute _
 		"	DELETE QuoteQuantities " & _
-		"	WHERE  qmqQuoteID = " & App.AddQuotes(QuoteID) & _
+		"	WHERE  qmqQuoteID = " & App.Convert.StringToSql(QuoteID) & _
 		"	       AND qmqQuoteLineID < 0"
 	Connection.Execute _
 		"	DELETE QuoteAssemblies " & _
-		"	WHERE  qmaQuoteID = " & App.AddQuotes(QuoteID) & _
+		"	WHERE  qmaQuoteID = " & App.Convert.StringToSql(QuoteID) & _
 		"	       AND qmaQuoteLineID < 0"
 	Connection.Execute _
 		"	DELETE QuoteOperations " & _
-		"	WHERE  qmoQuoteID = " & App.AddQuotes(QuoteID) & _
+		"	WHERE  qmoQuoteID = " & App.Convert.StringToSql(QuoteID) & _
 		"	       AND qmoQuoteLineID < 0"
 	Connection.Execute _
 		"	DELETE QuoteMaterials " & _
-		"	WHERE  qmmQuoteID = " & App.AddQuotes(QuoteID) & _
+		"	WHERE  qmmQuoteID = " & App.Convert.StringToSql(QuoteID) & _
 		"	       AND qmmQuoteLineID < 0"
 	Connection.Execute _
 		"	DELETE uQuoteAssemblyCosts " & _
-		"	WHERE  uqcQuoteID = " & App.AddQuotes(QuoteID) & _
+		"	WHERE  uqcQuoteID = " & App.Convert.StringToSql(QuoteID) & _
 		"	       AND uqcQuoteLineID < 0"
 End Function
-
+		
 Private Function CreateQuoteLineItem(ByVal QuoteID, ByVal Quantities, ByVal ProjectID, _
 		                                 ByVal ProjectAreaID, ByVal PartID, ByVal PartShortDescription)
-	QuoteLineID = App.GetNextIDForTable("QuoteLines", Array(QuoteID))
+	
+'	QuoteLineID = App.GetNextIDForTable("QuoteLines", Array(QuoteID)) 'old v8 function
+'	QuoteLineID = App.GenerateNextIDForTable("QuoteLines", Array(QuoteID)) 'call from v9 conversion
+	QuoteLineID = App.Ax("LegacyFunctions").GetNextIDForTable("QuoteLines", Array(QuoteID))
 	CreateQuoteLine QuoteID, QuoteLineID, ProjectID, _
 	                ProjectAreaID, PartID, PartShortDescription
 	CreateQuoteQuantities QuoteID, QuoteLineID, Quantities
 	CreateQuoteLineItem = QuoteLineID
 End Function
-
+		
 Private Function CreateTempQuoteLineItem(ByVal QuoteID, ByVal Quantities, ByVal PartID, _
 	                                       ByVal PartShortDescription)
 	QuoteLineID = cInt(Connection.Execute( _
 																				"	SELECT IsNull(MIN(qmlQuoteLineID), 0) AS qmlQuoteLineID " & _
 																				"	FROM   QuoteLines " & _
-																				"	WHERE  qmlQuoteID = " & App.AddQuotes(QuoteID)).Fields("qmlQuoteLineID").Value) - 1
+																				"	WHERE  qmlQuoteID = " & App.Convert.StringToSql(QuoteID)).Fields("qmlQuoteLineID").Value) - 1
 	If IsNull(QuoteLineID) Then
 		QuoteLineID = -1
 	ElseIf cInt(QuoteLineID) >= 0 then
@@ -1366,7 +1390,7 @@ Private Function CreateTempQuoteLineItem(ByVal QuoteID, ByVal Quantities, ByVal 
 	CreateQuoteQuantities QuoteID, QuoteLineID, Quantities
 	CreateTempQuoteLineItem = QuoteLineID
 End Function
-
+		
 Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal ProjectID, _
 	                               ByVal ProjectAreaID, ByVal PartID, ByVal PartShortDescription)
 	Set rsQuoteLines = CreateObject("ADODB.RecordSet")
@@ -1378,7 +1402,6 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 	
 	rsQuoteLines.AddNew
 	rsQuoteLines.Fields("qmlQuoteID").value = LEFT(QuoteID, 10)
-	
 	rsQuoteLines.Fields("uqmlImported").Value = True
 	Set rsQuotedCustomerOrganizations = CreateObject("ADODB.Recordset")
 	rsQuotedCustomerOrganizations.Open _
@@ -1388,9 +1411,9 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 		"	       INNER JOIN OrganizationLocations " & _
 		"	               ON qmpShipOrganizationID = cmlOrganizationID " & _
 		"	                     AND qmpShipLocationID = cmlLocationID" & _
-		"	WHERE  qmpQuoteID = " & App.AddQuotes(rsQuoteLines.Fields("qmlQuoteID").Value), _
+		"	WHERE  qmpQuoteID = " & App.Convert.StringToSql(rsQuoteLines.Fields("qmlQuoteID").Value), _
 		Connection, adOpenStatic, adLockReadOnly, adCmdText
-	
+
 	If rsQuotedCustomerOrganizations.EOF = False Then
 		If CInt(rsQuotedCustomerOrganizations.Fields("cmlCustomerTaxable").Value) = True Then
 			rsQuoteLines.Fields("qmlTaxCodeID").Value = rsQuotedCustomerOrganizations.Fields("cmlCustomerTaxCodeID").Value
@@ -1400,15 +1423,15 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 		rsQuoteLines.Fields("qmlProjectID").Value = rsQuotedCustomerOrganizations.Fields("qmpProjectID").Value
 	End If
 	rsQuotedCustomerOrganizations.Close
-	
-	If App.AvalaraActivated = True Then
+
+	If App.Ax("Production").AvalaraActivated = True Then
 		Connection.Execute _
 			"	UPDATE Quotes " & _
 			"	SET    qmpAvalaraTaxCalculated = 0 " & _
 			"	WHERE  qmpAvalaraTaxCalculated <> 0 " & _
-			"	       AND qmpQuoteID = " & App.AddQuotes(rsQuoteLines.Fields("qmlQuoteID").Value)
+			"	       AND qmpQuoteID = " & App.Convert.StringToSql(rsQuoteLines.Fields("qmlQuoteID").Value)
 	End If
-	
+
 	rsQuoteLines.Fields("qmlQuoteLineID").value = QuoteLineID
 	rsQuoteLines.Fields("qmlPartID").value = LEFT(PartID, 30)
 		
@@ -1418,7 +1441,7 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 			"	SELECT impPartGroupID, impTaxCodeID, impSecondTaxCodeID, " & _
 			"	       impAlwaysNonTaxable, impNonTaxReasonID, impDeliveryType " & _
 			"	FROM   Parts " & _
-			"	WHERE  impPartID = " & App.AddQuotes(rsQuoteLines.Fields("qmlPartID").Value),_
+			"	WHERE  impPartID = " & App.Convert.StringToSql(rsQuoteLines.Fields("qmlPartID").Value),_
 			Connection, adOpenStatic, adLockReadOnly, adCmdText
 		If Not rsParts.EOF Then
 			rsQuoteLines.Fields("qmlPartGroupID").Value = rsParts.Fields("impPartGroupID").Value
@@ -1441,14 +1464,14 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 			End If
 				
 			If CInt(rsParts.fields("impDeliveryType").value) = 5 Then
-				rsQuoteLines.Fields("qmlPurchaseToOrder").value = -1
+				rsQuoteLines.Fields("qmlPurchaseToOrder").value = True
 			Else
 				rsQuoteLines.Fields("qmlPurchaseToOrder").value = 0
 			End If
 		End If
 		rsParts.Close
 	End If
-	
+				
 	rsQuoteLines.Fields("qmlUnitOfMeasure").value = App.Props("OM").Fields("xapomunitofmeasure").Value
 	If Trim(rsQuoteLines.Fields("qmlPartID").Value) <> "" Then
 		Set rsPartRevisions = CreateObject("ADODB.Recordset")
@@ -1456,8 +1479,8 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 			"	SELECT imrShortDescription, imrInventoryUnitOfMeasure, imrLongDescriptionRTF, " & _
 			"	       imrLongDescriptionText, imrDocuments " & _
 			"	FROM   PartRevisions " & _
-			"	WHERE  imrPartID = " & App.AddQuotes(rsQuoteLines.Fields("qmlPartID").Value) & _
-			"	       And imrPartRevisionID = " & App.AddQuotes(rsQuoteLines.Fields("qmlPartRevisionID").Value),_
+			"	WHERE  imrPartID = " & App.Convert.StringToSql(rsQuoteLines.Fields("qmlPartID").Value) & _
+			"	       And imrPartRevisionID = " & App.Convert.StringToSql(rsQuoteLines.Fields("qmlPartRevisionID").Value),_
 			Connection,adOpenStatic,adLockReadOnly,adCmdText
 		If rsPartRevisions.EOF = False Then
 			rsQuoteLines.Fields("qmlUnitOfMeasure").Value = rsPartRevisions.Fields("imrInventoryUnitOfMeasure").Value
@@ -1467,13 +1490,13 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 			rsQuoteLines.Fields("qmlDocuments").Value = rsPartRevisions.Fields("imrDocuments").Value
 		End If
 		rsPartRevisions.Close
-	
+
 		If CInt(rsQuoteLines.Fields("qmlPurchaseToOrder").Value) = -1 Then
 			Set rsQuotes = CreateObject("ADODB.Recordset")
 			rsQuotes.Open _
 				"	SELECT qmpQuoteDate, qmpCurrencyRateID " & _
 				"	FROM   Quotes " & _
-				"	WHERE  qmpQuoteID = " & App.AddQuotes(rsQuoteLines.Fields("qmlQuoteID").Value), _
+				"	WHERE  qmpQuoteID = " & App.Convert.StringToSql(rsQuoteLines.Fields("qmlQuoteID").Value), _
 				Connection, adOpenStatic, adLockReadOnly, adCmdText
 			If rsQuotes.EOF = False Then
 				dPriceDate = rsQuotes.Fields("qmpQuoteDate").Value
@@ -1482,7 +1505,7 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 			rsQuotes.Close
 			
 			bForeignAmount = False
-			nValue = App.PartFunctions.GetPurchasePrice(rsQuoteLines.Fields("qmlPartID").Value, _
+			nValue = App.Ax("PartFunctions").GetPurchasePrice(rsQuoteLines.Fields("qmlPartID").Value, _
 																									 rsQuoteLines.Fields("qmlPartRevisionID").Value, _
 																									 rsQuoteLines.Fields("qmlSupplierOrganizationID").Value, _
 																									 rsQuoteLines.Fields("qmlPurchaseLocationID").Value, _
@@ -1491,6 +1514,7 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 																									 cCurrencyID, _
 																									 bForeignAmount, _
 																									 dPriceDate)
+
 			If nValue >= 0 Then
 				If bForeignAmount = True Then
 					If CDbl(nValue) <> CDbl(rsQuoteLines.Fields("qmlPurchaseUnitCostForeign").Value) Then
@@ -1504,24 +1528,30 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 			End If
 		End If
 	End If
-	
-	Call App.PartFunctions.PartReferenceCheck(rsQuoteLines.Fields, _
-																						 "qmlPartID", _
-																						 "qmlPartRevisionID", _
-																						 "qmlOrgPartID", _
-																						 "qmlPartShortDescription", _
-																						 "qmlOrgPartShortDescription", _
-																						 "	SELECT qmpCustomerOrganizationID, qmpQuoteLocationID " & _
-																						 "	FROM Quotes " & _
-																						 "	WHERE qmpQuoteID = " & App.AddQuotes(rsQuoteLines.Fields("qmlQuoteID").Value), _
-																						 "",_
-																						 "HOME")
+
+' We don't deal with customer part number cross-references, so this is commented out for now.
+' It should still be fixed.
+'	Call App.Ax("PartFunctions").PartReferenceCheck(rsQuoteLines.fields, _
+'																						 "qmlPartID", _
+'																						 "qmlPartRevisionID", _
+'																						 "qmlOrgPartID", _
+'																						 "qmlPartShortDescription", _
+'																						 "qmlOrgPartShortDescription", _
+'																						 "	SELECT qmpCustomerOrganizationID " & _
+'																						 "	FROM Quotes " & _
+'																						 "	WHERE qmpQuoteID = " & App.Convert.StringToSql(rsQuoteLines.Fields("qmlQuoteID").Value), _
+'																						 "	SELECT qmpQuoteLocationID " & _
+'																						 "	FROM Quotes " & _
+'																						 "	WHERE qmpQuoteID = " & App.Convert.StringToSql(rsQuoteLines.Fields("qmlQuoteID").Value), _
+
 	If Trim(PartShortDescription) <> "" Then
 		rsQuoteLines.Fields("qmlPartShortDescription").value = LEFT(PartShortDescription, 50)
 	End If
 	rsQuoteLines.Fields("qmlQuoteMarkupType").value = App.Props("PN").Fields("xapQMQuoteMarkupType").Value
-	rsQuoteLines.Fields("qmlMatrixCalculated").value = False
-	rsQuoteLines.Fields("qmlTaxesCalculated").value = True
+	rsQuoteLines.Fields("qmlQuantityToTotal").value = 1
+	rsQuoteLines.Fields("qmlMatrixCalculated").value = true
+	'gone in v9
+	'rsQuoteLines.Fields("qmlTaxesCalculated").value = True 
 	If(CInt(rsQuoteLines.Fields("qmlPurchaseToOrder").Value)) = 0 Then
 		rsQuoteLines.Fields("qmlSupplierOrganizationID").Value = ""
 		rsQuoteLines.Fields("qmlPurchaseLocationID").Value = ""
@@ -1532,7 +1562,7 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 			rsQuotes.Open _
 				"	SELECT qmpQuoteDate, qmpCurrencyRateID " & _
 				"	FROM   Quotes " & _
-				"	WHERE  qmpQuoteID = " & App.AddQuotes(rsQuoteLines.Fields("qmlQuoteID").Value), _
+				"	WHERE  qmpQuoteID = " & App.Convert.StringToSql(rsQuoteLines.Fields("qmlQuoteID").Value), _
 				Connection, adOpenStatic, adLockReadOnly, adCmdText
 			If rsQuotes.EOF = False Then
 				dPriceDate = rsQuotes.Fields("qmpQuoteDate").Value
@@ -1541,7 +1571,7 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 			rsQuotes.Close
 			
 			bForeignAmount = False
-			nValue = App.PartFunctions.GetPurchasePrice(rsQuoteLines.Fields("qmlPartID").Value, _
+			nValue = App.Ax("PartFunctions").GetPurchasePrice(rsQuoteLines.Fields("qmlPartID").Value, _
 																									 rsQuoteLines.Fields("qmlPartRevisionID").Value, _
 																									 rsQuoteLines.Fields("qmlSupplierOrganizationID").Value, _
 																									 rsQuoteLines.Fields("qmlPurchaseLocationID").Value, _
@@ -1563,6 +1593,7 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 			End If
 		End If
 	End If
+
 	rsQuoteLines.Fields("qmlProjectID").value = LEFT(ProjectID, 10)
 	rsQuoteLines.Fields("qmlProjectAreaID").value = LEFT(ProjectAreaID, 15)
 	rsQuoteLines.Fields("qmlFirm").value = True
@@ -1570,9 +1601,10 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 	rsQuoteLines.Fields("qmlCreatedDate").value = Now()
 
 	'Update Trigger
-	If CInt(rsQuoteLines.Fields("qmlTaxesCalculated").Value) = False Then
-		Call App.QuoteFunctions.RefreshTaxes(rsQuoteLines.Fields)
-	End If
+'Tax refresh is now handled by the "Update Revised Prices" customization
+'	If CInt(rsQuoteLines.Fields("qmlTaxesCalculated").Value) = False Then
+'	  Call App.Ax("QuoteFunctions").RefreshTaxes(rsQuoteLines.Fields)
+'	End If
 
 	rsQuoteLines.UpdateBatch
 	
@@ -1581,15 +1613,15 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 	rsQuoteAssemblies.Open _
 		"	SELECT * " & _
 		"	FROM   QuoteAssemblies " & _
-		"	WHERE  qmaQuoteID = " & App.AddQuotes(rsQuoteLines.Fields("qmlQuoteID").Value) & _
-		"	       AND qmaQuoteLineID = " & App.ConvertNumberToSQL(rsQuoteLines.Fields("qmlQuoteLineID").Value) & _
+		"	WHERE  qmaQuoteID = " & App.Convert.StringToSql(rsQuoteLines.Fields("qmlQuoteID").Value) & _
+		"	       AND qmaQuoteLineID = " & App.Convert.NumberToSql(rsQuoteLines.Fields("qmlQuoteLineID").Value) & _
 		"	       AND qmaQuoteAssemblyID = 0",_
 		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 	If rsQuoteAssemblies.EOF Then
 		rsQuoteAssemblies.AddNew
 		App.BlankRecord rsQuoteAssemblies
 	End If
-	
+
 	rsQuoteAssemblies.Fields("qmaClosed").Value = rsQuoteLines.Fields("qmlClosed").Value
 	rsQuoteAssemblies.Fields("qmaQuoteID").Value = rsQuoteLines.Fields("qmlQuoteID").Value
 	rsQuoteAssemblies.Fields("qmaQuoteLineID").Value = rsQuoteLines.Fields("qmlQuoteLineID").Value
@@ -1610,10 +1642,10 @@ Private Function CreateQuoteLine(ByVal QuoteID, ByVal QuoteLineID, ByVal Project
 
 	rsQuoteAssemblies.UpdateBatch
 	rsQuoteAssemblies.Close
-						
+		
 	CreateQuoteLine = rsQuoteLines.Fields("qmlQuoteLineID").value
 End Function
-
+		
 Private Function CreateQuoteQuantities(ByVal QuoteID, ByVal QuoteLineID, ByVal Quantities)
 	Set rsQuoteQuantities = CreateObject("ADODB.RecordSet")
 	rsQuoteQuantities.Open _ 
@@ -1637,7 +1669,9 @@ Private Function CreateQuoteQuantities(ByVal QuoteID, ByVal QuoteLineID, ByVal Q
 		rsQuoteQuantities.Fields("qmqQuoteLineID").value = cDbl(QuoteLineID)
 		rsQuoteQuantities.Fields("qmqQuoteQuantityID").value = cDbl(QuoteQuantityID)
 		rsQuoteQuantities.Fields("qmqQuoteQuantity").value = cDbl(ItemQuantity)
-		
+		rsQuoteQuantities.Fields("qmqTotalRunQuantity").value = cDbl(ItemQuantity)
+		rsQuoteQuantities.Fields("qmqQuoteMarkupType").value = GetMarkupTypeFromQuoteLine (QuoteID, QuoteLineID)
+				
 		rsQuoteQuantities.Fields("qmqMaterialMarkupPercent").value = cDbl(App.Props("QM").Fields("xapQMMaterialMarkup").Value)
 		rsQuoteQuantities.Fields("qmqSubcontractMarkupPercent").value = cDbl(App.Props("QM").Fields("xapQMSubcontractMarkup").Value)
 		rsQuoteQuantities.Fields("qmqLaborMarkupPercent").value = cDbl(App.Props("QM").Fields("xapQMLaborMarkup").Value)
@@ -1655,11 +1689,12 @@ Private Function CreateQuoteQuantities(ByVal QuoteID, ByVal QuoteLineID, ByVal Q
 			End If
 		End If
 
-		nPrice = App.ExchangeCurrency(CDbl(rsQuoteQuantities.Fields("qmqUnitDiscountBase").Value), _
+		nPrice = App.Ax("LegacyFunctions").ExchangeCurrency(CDbl(rsQuoteQuantities.Fields("qmqUnitDiscountBase").Value), _
 				                          "QuoteQuantities", _
 				                          rsQuoteQuantities.Fields("qmqQuoteID").Value, _
 				                          "BASE", _
 				                          5)
+				
 		If CDbl(nPrice) <> CDbl(rsQuoteQuantities.Fields("qmqUnitDiscountForeign").Value) And App.UpdatingCost = False Then
 			App.UpdatingCost = True
 			rsQuoteQuantities.Fields("qmqUnitDiscountForeign").Value = nPrice
@@ -1692,7 +1727,7 @@ Private Function CreateQuoteQuantities(ByVal QuoteID, ByVal QuoteLineID, ByVal Q
 			End If
 		End If
 
-		nPrice = App.ExchangeCurrency(CDbl(rsQuoteQuantities.Fields("qmqFullRevisedUnitPriceBase").Value), _
+		nPrice = App.Ax("LegacyFunctions").ExchangeCurrency(CDbl(rsQuoteQuantities.Fields("qmqFullRevisedUnitPriceBase").Value), _
 																	"QuoteQuantities", _
 																	rsQuoteQuantities.Fields("qmqQuoteID").Value, _
 																	"BASE", _
@@ -1729,7 +1764,15 @@ Private Function CreateQuoteQuantities(ByVal QuoteID, ByVal QuoteLineID, ByVal Q
 	next
 	rsQuoteQuantities.UpdateBatch
 End Function
-
+				
+Private Function GetMarkupTypeFromQuoteLine (QuoteID, QuoteLineID)
+	GetMarkupTypeFromQuoteLine = Connection.Execute( _	
+																"	SELECT qmlQuoteMarkupType " & _
+																"	FROM 	QuoteLines " & _
+																"	WHERE qmlQuoteID = " & App.Convert.StringToSql(QuoteID) & _
+																"		and qmlQuoteLineID =" & App.Convert.StringToSql(QuoteLineID)).Fields(0).Value
+End Function
+				
 Private Function GetCommissions(QuoteID, PartGroupID)
 	Select Case cInt(GetCommissionType(PartGroupID))
 		Case 1
@@ -1738,14 +1781,14 @@ Private Function GetCommissions(QuoteID, PartGroupID)
 													"	FROM   QuoteSalesPeople " & _
 													"	       INNER JOIN Employees " & _
 													"	               ON qmjSalesEmployeeID = lmeEmployeeID " & _
-													"	WHERE  qmjQuoteID = " & App.AddQuotes(QuoteID)).Fields(0).Value
+													"	WHERE  qmjQuoteID = " & App.Convert.StringToSql(QuoteID)).Fields(0).Value
 		Case 2
 			TotalCommission = Connection.Execute( _	
 													"	SELECT SUM((qmjPercent / 100) * imuCommissionRate) As Total " & _
 													"	FROM   QuoteSalesPeople " & _
 													"	       INNER JOIN PartGroups " & _
-													"	               ON imuPartGroupID = " & App.AddQuotes(PartGroupID) & _
-													"	WHERE  qmjQuoteID = " & App.AddQuotes(QuoteID)).Fields(0).Value
+													"	               ON imuPartGroupID = " & App.Convert.StringToSql(PartGroupID) & _
+													"	WHERE  qmjQuoteID = " & App.Convert.StringToSql(QuoteID)).Fields(0).Value
 		Case Else
 			TotalCommission = 0
 	End Select
@@ -1755,27 +1798,27 @@ Private Function GetCommissions(QuoteID, PartGroupID)
 		GetCommissions = TotalCommission
 	End If
 End Function
-
+				
 Private Function GetCommissionType(PartGroupID)
 	Set rsCommissionType = Connection.Execute( _
 													"	SELECT IsNull(imuCommissionType, 1) AS imuCommissionType " & _
 													"	FROM   PartGroups " & _
-													"	WHERE  imuPartGroupID = " & App.AddQuotes(PartGroupID))
+													"	WHERE  imuPartGroupID = " & App.Convert.StringToSql(PartGroupID))
 	If rsCommissionType.EOF then 
 		GetCommissionType = 1
 	Else
 		GetCommissionType = rsCommissionType.Fields("imuCommissionType").Value
 	end if
 End Function
-
+				
 Private Function GetQuoteLinePartGroup(QuoteID, QuoteLineID)
 	GetQuoteLinePartGroup = Connection.Execute( _
 												"	SELECT IsNull(qmlPartGroupID, '') AS qmlPartGroupID " & _
 												"	FROM   QuoteLines " & _
-												"	WHERE  qmlQuoteID = " & App.AddQuotes(QuoteID) & _
-												"	       AND qmlQuoteLineID = " & App.ConvertNumberToSQL(QuoteLineID)).Fields("qmlPartGroupID").Value
+												"	WHERE  qmlQuoteID = " & App.Convert.StringToSql(QuoteID) & _
+												"	       AND qmlQuoteLineID = " & App.Convert.NumberToSql(QuoteLineID)).Fields("qmlPartGroupID").Value
 End Function
-
+				
 Private Function GetQuoteAssemblies()
   Set rsQuoteAssemblies = CreateObject("ADODB.RecordSet")
   rsQuoteAssemblies.Open _ 
@@ -1786,7 +1829,7 @@ Private Function GetQuoteAssemblies()
 	
 	Set GetQuoteAssemblies = rsQuoteAssemblies
 End Function
-
+				
 Private Function CreateQuoteAssemblies(ByRef rsQuoteAssemblies, ByVal QuoteID, ByVal QuoteLineID, _
 	                                     ByVal QuoteAssemblyID, ByVal PartID, ByVal PartRevisionID, _
 	                                     ByVal ShortDescription, ByVal LongDescription, ByVal QuantityPerAssembly, _
@@ -1809,8 +1852,8 @@ Private Function CreateQuoteAssemblies(ByRef rsQuoteAssemblies, ByVal QuoteID, B
       "  SELECT imrInventoryUnitOfMeasure, imrDocuments, imrShortDescription, " & _
 			"	       imrLongDescriptionRTF, imrLongDescriptionText " & _
       "  FROM   PartRevisions " & _
-      "  WHERE  imrPartID = " & App.AddQuotes(rsQuoteAssemblies.Fields("qmaPartID").Value) & _
-      "         AND imrPartRevisionID = " & App.AddQuotes(rsQuoteAssemblies.Fields("qmaPartRevisionID").Value), _
+      "  WHERE  imrPartID = " & App.Convert.StringToSql(rsQuoteAssemblies.Fields("qmaPartID").Value) & _
+      "         AND imrPartRevisionID = " & App.Convert.StringToSql(rsQuoteAssemblies.Fields("qmaPartRevisionID").Value), _
       Connection, adOpenStatic, adLockReadOnly, adCmdText
     
     If Not rsPartRevisions.EOF Then
@@ -1837,7 +1880,6 @@ Private Function CreateQuoteAssemblies(ByRef rsQuoteAssemblies, ByVal QuoteID, B
   rsQuoteAssemblies.Fields("qmaCreatedBy").value = App.UserID
   rsQuoteAssemblies.Fields("qmaCreatedDate").value = Now()
 End Function
-
 Private Function GetQuoteOperations()
 	Set rsQuoteOperations = CreateObject("ADODB.RecordSet")
 	rsQuoteOperations.Open _ 
@@ -1847,7 +1889,7 @@ Private Function GetQuoteOperations()
 		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 	Set GetQuoteOperations = rsQuoteOperations
 End Function
-
+		
 Private Function CreateQuoteOperation(ByRef rsQuoteOperations, ByVal QuoteID, ByVal QuoteLineID, _
 	                                    ByVal QuoteAssemblyID, ByVal QuoteOperationID, ByVal WorkcenterID, _
 	                                    ByVal ProductionStandard)
@@ -1867,7 +1909,7 @@ Private Function CreateQuoteOperation(ByRef rsQuoteOperations, ByVal QuoteID, By
 		"	       xawQuotingRate, xawSetupHours, xawStandardFactor, " & _
 		"	       xawProductionStandard " & _
 		"	FROM   WorkCenters " & _
-		"	WHERE  xawWorkCenterID = " & App.AddQuotes(rsQuoteOperations.Fields("qmoWorkCenterID").Value), _
+		"	WHERE  xawWorkCenterID = " & App.Convert.StringToSql(rsQuoteOperations.Fields("qmoWorkCenterID").Value), _
 		Connection,adOpenStatic,adLockReadOnly,adCmdText
 	If rsWorkCenters.EOF = False Then
 		If CDbl(rsWorkCenters.Fields("xawSetupHours").Value) <> 0 Then
@@ -1891,7 +1933,7 @@ Private Function CreateQuoteOperation(ByRef rsQuoteOperations, ByVal QuoteID, By
 			rsProcesses.Open _
 				"	SELECT xacProjectedSetupRate, xacProjectedProductionRate " & _
 				"	FROM   Processes " & _
-				"	WHERE  xacProcessID = " & App.AddQuotes(rsQuoteOperations.Fields("qmoProcessID").Value), _
+				"	WHERE  xacProcessID = " & App.Convert.StringToSql(rsQuoteOperations.Fields("qmoProcessID").Value), _
 				Connection,adOpenStatic,adLockReadOnly,adCmdText
 			If rsProcesses.EOF = False Then
 				rsQuoteOperations.Fields("qmoSetupRate").Value = rsProcesses.Fields("xacProjectedSetupRate").Value
@@ -1908,7 +1950,7 @@ Private Function CreateQuoteOperation(ByRef rsQuoteOperations, ByVal QuoteID, By
 		"	       xacLongDescriptionText, xacProjectedSetupRate, xacProjectedProductionRate, " & _
 		"	       xacSetupHours, xacStandardFactor, xacProductionStandard " & _
 		"	FROM   Processes " & _
-		"	WHERE  xacProcessID = " & App.AddQuotes(rsQuoteOperations.Fields("qmoProcessID").Value), _
+		"	WHERE  xacProcessID = " & App.Convert.StringToSql(rsQuoteOperations.Fields("qmoProcessID").Value), _
 		Connection,adOpenStatic,adLockReadOnly,adCmdText
 	If rsProcesses.EOF = False Then
 		cPrev = rsQuoteOperations.Fields("qmoProcessID").OriginalValue
@@ -1918,7 +1960,7 @@ Private Function CreateQuoteOperation(ByRef rsQuoteOperations, ByVal QuoteID, By
 		rsTemp.Open _
 			"	SELECT xacLongDescriptionRTF " & _
 			"	FROM   Processes " & _
-			"	WHERE  xacProcessID = " & App.AddQuotes(cPrev), _
+			"	WHERE  xacProcessID = " & App.Convert.StringToSql(cPrev), _
 			Connection,adOpenStatic,adLockReadOnly,adCmdText
 		If rsTemp.EOF = False Then
 			If Trim(rsQuoteOperations.Fields("qmoProcessLongDescriptionRTF").Value) = _
@@ -1959,13 +2001,13 @@ Private Function CreateQuoteOperation(ByRef rsQuoteOperations, ByVal QuoteID, By
 	rsProcesses.Close
 	rsQuoteOperations.Fields("qmoQuantityPerAssembly").value = 1
 	rsQuoteOperations.Fields("qmoProductionStandard").value = ProductionStandard
-	rsQuoteOperations.Fields("qmoStandardFactor").value = "TM" 'App.Props("JM").Fields("xapjmstandardfactor").Value
+	rsQuoteOperations.Fields("qmoStandardFactor").value = "MP" 'App.Props("JM").Fields("xapjmstandardfactor").Value
 	rsQuoteOperations.Fields("qmoMachinesToSchedule").value = 1
 	rsQuoteOperations.Fields("qmoMachineType").value = 1
 	rsQuoteOperations.Fields("qmoCreatedBy").value = App.UserID
 	rsQuoteOperations.Fields("qmoCreatedDate").value = Now()
 End Function
-
+			
 Private Function GetQuoteMaterials()
   Set rsQuoteMaterials = CreateObject("ADODB.RecordSet")
   rsQuoteMaterials.Open _ 
@@ -1976,9 +2018,10 @@ Private Function GetQuoteMaterials()
 	
 	Set GetQuoteMaterials = rsQuoteMaterials
 End Function
-
+			
 Private Function CalculateQuantityPerAssembly(ByRef rsMaterialTable, ByRef rsSheetSize, ByRef rsPartTable, _
 	                                            ByVal VBScriptFormula)
+
 	For Each Item in GenerateArrayForCalculateQuantity(rsMaterialTable, rsSheetSize, rsPartTable)
 		Execute Item(0) & " = " & cDbl(Item(1))
 	Next
@@ -1989,13 +2032,14 @@ Private Function CalculateQuantityPerAssembly(ByRef rsMaterialTable, ByRef rsShe
 		Formula = 0
 	End If
 	
-	CalculateQuantityPerAssembly = Formula
+	CalculateQuantityPerAssembly = formula
 End Function
-
+			
 Private Function GenerateArrayForCalculateQuantity(ByRef rsMaterialTable, ByRef rsSheetSize, ByRef rsPartTable)
 	Variables = Array()
 	
 	Redim Preserve Variables(uBound(Variables) + 2)
+	
 	If Not rsMaterialTable.EOF Then
 		Variables(uBound(Variables) - 1) = Array("MaterialWaste", rsMaterialTable.Fields("Waste").Value)
 		Variables(uBound(Variables)) = Array("MaterialRoughThickness", rsMaterialTable.Fields("RoughThickness").Value)
@@ -2038,7 +2082,7 @@ Private Function GenerateArrayForCalculateQuantity(ByRef rsMaterialTable, ByRef 
 	
 	GenerateArrayForCalculateQuantity = Variables
 End Function
-
+				
 Private Function GenerateQuoteMaterials(ByRef rsQuoteMaterials, ByVal ID, ByVal MaterialType, _
 	                                      ByVal MaterialDescription, ByVal Cost, ByVal rsData, _
 	                                      ByVal DescriptionJoinMap, ByVal QuoteID, ByVal QuoteLineID, _
@@ -2047,8 +2091,8 @@ Private Function GenerateQuoteMaterials(ByRef rsQuoteMaterials, ByVal ID, ByVal 
 	
 		PartKeys = CabinetBuilderPartIDTranslation(ID, MaterialType)
 	
-		App.DebugLog Join(Array("Generate Quote Materials", ID, MaterialType, _
-	                          MaterialDescription, Cost, QuoteMaterialID), "|"), DEBUG_MODE
+'		App.DebugLog Join(Array("Generate Quote Materials", ID, MaterialType, _
+'	                          MaterialDescription, Cost, QuoteMaterialID), "|"), DEBUG_MODE
 	
 		If Trim(PartKeys(0)) <> "" then
 			'QuantityPerAssembly = 1
@@ -2068,35 +2112,66 @@ Private Function GenerateQuoteMaterials(ByRef rsQuoteMaterials, ByVal ID, ByVal 
 			AddErrorMessage MaterialDescription & " " & Trim(ID) & " not found."		
 		End If
 End Function
-
+				
 Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials, ByVal QuoteID, ByVal QuoteLineID, _
 	                                                       ByVal QuoteAssemblyID, ByVAL QuoteMaterialID, ByVal PartID, _
 	                                                       ByVal PartRevisionID, ByVal QuantityPerAssembly, ByVal ShortDescription, _
 	                                                       ByVal LongDescription, ByVal Consolidated, ByVal DefaultPrice, _
 	                                                       ByVal UseDefaultValue, ByVal FilterByName)
+	
 	if VERBOSE then
 		msgbox "CreateQuoteMaterialsWithQuantityFormula" & vbnewline & _
 					 "QuoteID: " & QuoteID & vbnewline & _
 					 "QuoteLineID: " & QuoteLineID & vbnewline & _
 					 "QuoteAssemblyID: " & QuoteAssemblyID & vbnewline & _
-					 "QuoteMaterialID: " & QuoteMaterialID & vbnewline
+					 "QuoteMaterialID: " & QuoteMaterialID & vbnewline & _
+			 		"PartID: " & PartID & vbnewline & _
+					 "PartRevisionID: " & PartRevisionID & vbnewline & _
+					 "QuantityPerAssembly: " & QuantityPerAssembly & vbnewline & _
+					 "ShortDescription: " & ShortDescription & vbnewline & _
+					 "LongDescription: " & LongDescription & vbnewline & _
+					 "Consolidated: " & Consolidated & vbnewline & _
+					 "DefaultPrice: " & DefaultPrice & vbnewline & _
+					 "UseDefaultValue: " & UseDefaultValue & vbnewline & _
+					 "FilterByName: " & FilterByName
 	end if
-		
+	
 	NewQuoteMaterialIDNeeded = False
 	FoundPart = False
-	
+	QuoteMaterialWhereClause = ""
 	If Consolidated Then
+'		if FilterByName then
+'			rsQuoteMaterials.Filter = "qmmPartID = " & App.Convert.StringToSql(PartID) & _
+'			                          " AND qmmPartRevisionID = " & App.Convert.StringToSql(PartRevisionID) & _
+'																" AND qmmPartShortDescription = " & App.Convert.StringToSql(ShortDescription)
+'		else
+'				rsQuoteMaterials.Filter = "qmmPartID = " & App.Convert.StringToSql(PartID) & _
+'																	" AND qmmPartRevisionID = " & App.Convert.StringToSql(PartRevisionID)
+
+'		end if
+		' Begin hack to replace rs.filters above
+		foundQuoteMaterial = FALSE
+		rsQuoteMaterials.MoveFirst
+		do while not found and not rsQuoteMaterials.EOF  
+			if FilterByName then
+				if rsQuoteMaterials.fields("qmmPartID").value = PartID _
+					 	AND rsQuoteMaterials.fields("qmmPartRevisionID").value = PartRevisionID _
+					 	AND rsQuoteMaterials.fields("qmmPartShortDescription").value = ShortDescription then
+					foundQuoteMaterial = true
+					exit do
+				end if
+			else
+				if rsQuoteMaterials.fields("qmmPartID").value = PartID _
+					 	AND rsQuoteMaterials.fields("qmmPartRevisionID").value = PartRevisionID then
+					foundQuoteMaterial = true
+					exit do
+				end if
+			end if
+			rsQuoteMaterials.MoveNext	
+		loop
+		' end hack
 		
-		if FilterByName then
-			rsQuoteMaterials.Filter = "qmmPartID = " & App.AddQuotes(PartID) & _
-			                          " AND qmmPartRevisionID = " & App.AddQuotes(PartRevisionID) & _
-																" AND qmmPartShortDescription = " & app.AddQuotes(ShortDescription)
-		else
-			rsQuoteMaterials.Filter = "qmmPartID = " & App.AddQuotes(PartID) & _
-			                          " AND qmmPartRevisionID = " & App.AddQuotes(PartRevisionID)
-		end if
-						
-		
+		'asdf
 		Do While Not rsQuoteMaterials.EOF 
 			If cLng(rsQuoteMaterials.Fields("qmmQuoteAssemblyID").Value) = cLng(QuoteAssemblyID) Then
 				rsQuoteMaterials.Fields("qmmQuantityPerAssembly").Value = cDbl(rsQuoteMaterials.Fields("qmmQuantityPerAssembly").Value) + _
@@ -2106,10 +2181,12 @@ Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials,
 			End IF
 			rsQuoteMaterials.MoveNext
 		Loop
-		rsQuoteMaterials.Filter = ""
+		'rsQuoteMaterials.Filter = ""
+		rsQuoteMaterials.MoveFirst						
 	End If
 
-	If (Not FoundPart) Or (Not Consolidated) Then	
+	If (Not FoundPart) Or (Not Consolidated) Then
+
 		CreateQuoteMaterials rsQuoteMaterials, QuoteID, QuoteLineID, _
 		                  QuoteAssemblyID, _
 	                    QuoteMaterialID, PartID, PartRevisionID, _
@@ -2119,7 +2196,7 @@ Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials,
 	
 	CreateQuoteMaterialsWithQuantityFormula = NewQuoteMaterialIDNeeded
 End Function
-
+					
 Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByVal QuoteLineID, _
 																			ByVal QuoteAssemblyID, ByRef QuoteMaterialID, ByVal PartID, _
 																			ByVal PartRevisionID, ByVal QuantityPerAssembly, ByVal ShortDescription, _
@@ -2130,7 +2207,14 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
 					 "QuoteID: " & QuoteID & vbnewline & _
 					 "QuoteLineID: " & QuoteLineID & vbnewline & _
 					 "QuoteAssemblyID: " & QuoteAssemblyID & vbnewline & _
-					 "QuoteMaterialID: " & QuoteMaterialID & vbnewline
+					 "QuoteMaterialID: " & QuoteMaterialID & vbnewline & _
+					 "PartID: " & PartID & vbnewline & _
+					 "PartRevisionID: " & PartRevisionID & vbnewline & _
+					 "QuantityPerAssembly: " & QuantityPerAssembly & vbnewline & _
+					 "ShortDescription: " & ShortDescription & vbnewline & _
+					 "LongDescription: " & LongDescription & vbnewline & _
+					 "DefaultPrice: " & DefaultPrice & vbnewline & _
+					 "UseDefaultValue: " & UseDefaultValue
 	end if
 	
   rsQuoteMaterials.AddNew
@@ -2158,8 +2242,8 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
     "            imrStandardSubcontractCost + imrStandardDutyCost + imrStandardFreightCost + " & _
     "            imrStandardMiscCost As StdCost " & _
     "  FROM   PartRevisions " & _
-    "  WHERE  imrPartID = " & App.AddQuotes(rsQuoteMaterials.Fields("qmmPartID").Value) & _
-    "         AND imrPartRevisionID = " & App.AddQuotes(rsQuoteMaterials.Fields("qmmPartRevisionID").Value), _
+    "  WHERE  imrPartID = " & App.Convert.StringToSql(rsQuoteMaterials.Fields("qmmPartID").Value) & _
+    "         AND imrPartRevisionID = " & App.Convert.StringToSql(rsQuoteMaterials.Fields("qmmPartRevisionID").Value), _
     Connection, adOpenStatic, adLockReadOnly, adCmdText
 	
   If Not rsPartRevisions.EOF Then
@@ -2179,9 +2263,11 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
 																																									QuoteLineID, _
 																																									QuoteAssemblyID, _
 																																									rsPartRevisions.Fields("uimrWorkcenterID").Value)
-		If Not (App.PartFunctions.IsLotTracked(rsQuoteMaterials.Fields("qmmPartID").value) Or _
-			      App.PartFunctions.IsSerialLotTracked(rsQuoteMaterials.Fields("qmmPartID").value)) AND _
-			 rsQuoteMaterials.Fields("qmmRelatedQuoteOperationID").value <> 0 Then
+'		If Not (App.Ax("LotNumbers").IsLotTracked(rsQuoteMaterials.Fields("qmmPartID").value) Or _
+'			      App.Ax("PartFunctions").IsSerialLotTracked(rsQuoteMaterials.Fields("qmmPartID").value)) AND _
+'			 rsQuoteMaterials.Fields("qmmRelatedQuoteOperationID").value <> 0 Then
+		If Not App.Ax("LotNumbers").IsLotTracked(rsQuoteMaterials.Fields("qmmPartID").value) AND _
+					 rsQuoteMaterials.Fields("qmmRelatedQuoteOperationID").value <> 0 Then
 		
 			rsQuoteMaterials.Fields("qmmBackflush").value = True
 		End If
@@ -2202,17 +2288,17 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
 			' The below line must stay commented out. Enabling the line causes an error when using
 			' the purchasing wizard. "The purchase quantity is less than the required quantity."
 			' Evaluate enabling the line once we move to v9
-			'rsQuoteMaterials.Fields("qmmCostOverride").Value = -1
+			 rsQuoteMaterials.Fields("qmmCostOverride").Value = True
 		End If
 		
-    App.PartFunctions.GetDefaultWarehouseAndBin rsQuoteMaterials.Fields("qmmPartID").Value, _
+    App.Ax("PartFunctions").GetDefaultWarehouseAndBin rsQuoteMaterials.Fields("qmmPartID").Value, _
                                                   rsQuoteMaterials.Fields("qmmPartRevisionID").Value, _
                                                   rsQuoteMaterials.Fields("qmmPartWarehouseLocationID"), _
                                                   rsQuoteMaterials.Fields("qmmPartBinID"), _
 	                                                "  SELECT qmpPlantID " & _
 	                                                "  FROM   Quotes " & _
 	                                                "  WHERE  qmpQuoteID = " & _
-																														App.AddQuotes(rsQuoteMaterials.Fields("qmmQuoteID").Value)
+																														App.Convert.StringToSql(rsQuoteMaterials.Fields("qmmQuoteID").Value)
 	Else
 		rsQuoteMaterials.Fields("qmmUnitOfMeasure").value = App.Props("OM").Fields("xapomunitofmeasure").Value
   End If
@@ -2229,16 +2315,16 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
 	End If
 	
   For nLoop = 1 To 9
-    rsQuoteMaterials.Fields("qmmQuantityBreak" & App.ConvertNumberToSQL(nLoop)).Value = 0
-    rsQuoteMaterials.Fields("qmmUnitCost" & App.ConvertNumberToSQL(nLoop)).Value = 0
+    rsQuoteMaterials.Fields("qmmQuantityBreak" & App.Convert.NumberToSql(nLoop)).Value = 0
+    rsQuoteMaterials.Fields("qmmUnitCost" & App.Convert.NumberToSql(nLoop)).Value = 0
   Next
 	
   Set rsCurrency = CreateObject("ADODB.Recordset")  
   rsCurrency.open _
     "  SELECT cmlCurrencyRateID " & _
     "  FROM   OrganizationLocations " & _
-    "  WHERE  cmlOrganizationID = " &  App.AddQuotes(rsQuoteMaterials.Fields("qmmSupplierOrganizationID").Value) & _
-    "         AND cmlLocationID = " & App.AddQuotes(rsQuoteMaterials.Fields("qmmPurchaseLocationID").Value), _
+    "  WHERE  cmlOrganizationID = " &  App.Convert.StringToSql(rsQuoteMaterials.Fields("qmmSupplierOrganizationID").Value) & _
+    "         AND cmlLocationID = " & App.Convert.StringToSql(rsQuoteMaterials.Fields("qmmPurchaseLocationID").Value), _
     Connection, adOpenStatic, adLockReadOnly, adCmdText
 	
   If Not rsCurrency.EOF Then
@@ -2249,7 +2335,7 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
   rsCurrency.Close
   
   rsQuoteMaterials.Fields("qmmSourcePriceID").Value = _
-    App.PartFunctions.GetPurchasePriceID(rsQuoteMaterials.Fields("qmmPartID").Value, _
+    App.Ax("PartFunctions").GetPurchasePriceID(rsQuoteMaterials.Fields("qmmPartID").Value, _
                                           rsQuoteMaterials.Fields("qmmPartRevisionID").Value, _
                                           rsQuoteMaterials.Fields("qmmSupplierOrganizationID").Value,_
                                           rsQuoteMaterials.Fields("qmmPurchaseLocationID").Value, _
@@ -2263,24 +2349,24 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
       "  FROM   PartPriceBreaks " & _
       "         INNER JOIN PartPrices " & _
       "                 ON imjPartPriceID = imiPartPriceID " & _
-      "  WHERE imjPartPriceID = " & App.ConvertNumberToSQL(rsQuoteMaterials.Fields("qmmSourcePriceID").Value) & _
+      "  WHERE imjPartPriceID = " & App.Convert.NumberToSql(rsQuoteMaterials.Fields("qmmSourcePriceID").Value) & _
       "        AND imjUnitPrice <> 0", _
       Connection, adOpenStatic, adLockReadOnly, adCmdText
     rsDate.open _
       "  SELECT qmpQuoteDate " & _
       "  FROM   Quotes " & _
-      "  WHERE  qmpQuoteID = " & App.AddQuotes(rsQuoteMaterials.Fields("qmmQuoteID").value), _
+      "  WHERE  qmpQuoteID = " & App.Convert.StringToSql(rsQuoteMaterials.Fields("qmmQuoteID").value), _
       Connection, adOpenStatic, adLockReadOnly, adCmdText    
     
     If Not rsTemp.EOF Then
       If Not rsDate.EOF Then
-        Rate= App.GetExchangeRate(rsTemp.Fields("imiCurrencyRateID").value, rsDate.Fields("qmpQuoteDate").value)      
+        Rate= App.Financial.GetExchangeRate(rsTemp.Fields("imiCurrencyRateID").value, rsDate.Fields("qmpQuoteDate").value)      
       End If 
       If Rate = 0 then
         Rate = 1
       End If
       If CInt(rsTemp.Fields("imiInventoryPrice").Value) = 0 Then
-        Conversion = CDbl(App.PartFunctions.GetConversionFactor(rsQuoteMaterials.Fields("qmmPartID").Value, _
+        Conversion = CDbl(App.Ax("PartFunctions").GetConversionFactor(rsQuoteMaterials.Fields("qmmPartID").Value, _
                                                                  rsQuoteMaterials.Fields("qmmPartRevisionID").Value, _
                                                                  rsQuoteMaterials.Fields("qmmSupplierOrganizationID").Value))
         If Conversion <= 0 Then
@@ -2293,15 +2379,15 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
       Do While rsTemp.EOF = False
         nLoop = nLoop + 1
         If nLoop <= 9 Then
-          rsQuoteMaterials.Fields("qmmQuantityBreak" & App.ConvertNumberToSQL(nLoop)).Value = _
-            App.Round(CDbl(rsTemp.Fields("imjQuantity").Value), App.InventoryQuantityDecimals)
+          rsQuoteMaterials.Fields("qmmQuantityBreak" & App.Convert.NumberToSql(nLoop)).Value = _
+            App.Round(CDbl(rsTemp.Fields("imjQuantity").Value), App.Ax("Production").InventoryQuantityDecimals)
 
           If Trim(rsTemp.Fields("imiCurrencyRateID").value) <> "" And _
             Trim(rsTemp.Fields("imiCurrencyRateID").value) <> Trim(App.HomeCurrencyID) Then
-            rsQuoteMaterials.Fields("qmmUnitCost" & App.ConvertNumberToSQL(nLoop)).Value = _
+            rsQuoteMaterials.Fields("qmmUnitCost" & App.Convert.NumberToSql(nLoop)).Value = _
               App.Round((CDbl(CDbl(rsTemp.Fields("imjUnitPrice").Value) * Conversion) / Rate), 5)
           Else
-            rsQuoteMaterials.Fields("qmmUnitCost" & App.ConvertNumberToSQL(nLoop)).Value = _
+            rsQuoteMaterials.Fields("qmmUnitCost" & App.Convert.NumberToSql(nLoop)).Value = _
               App.Round(CDbl(rsTemp.Fields("imjUnitPrice").Value) * Conversion, 5)
           End If
         Else
@@ -2318,15 +2404,15 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
   rsQuoteMaterials.Fields("qmmCreatedBy").value = App.UserID
   rsQuoteMaterials.Fields("qmmCreatedDate").value = Now()
 End Function
-
+						
 Private Function GetWorkcenterID(QuoteID, QuoteLineID, QuoteAssemblyID, WorkcenterID)
 	Set rsWorkcenterID = Connection.Execute( _
 													"	SELECT qmoQuoteOperationID " & _
 													"	FROM   QuoteOperations " & _
-													"	WHERE  qmoQuoteID = " & App.AddQuotes(QuoteID) & _
-													"	       AND qmoQuoteLineID = " & App.ConvertNumberToSQL(QuoteLineID) & _
-													"	       AND qmoQuoteAssemblyID = " & App.ConvertNumberToSQL(QuoteAssemblyID) & _
-													"	       AND qmoWorkCenterID = " & App.AddQuotes(WorkcenterID))
+													"	WHERE  qmoQuoteID = " & App.Convert.StringToSql(QuoteID) & _
+													"	       AND qmoQuoteLineID = " & App.Convert.NumberToSql(QuoteLineID) & _
+													"	       AND qmoQuoteAssemblyID = " & App.Convert.NumberToSql(QuoteAssemblyID) & _
+													"	       AND qmoWorkCenterID = " & App.Convert.StringToSql(WorkcenterID))
 	
 	If rsWorkcenterID.EOF Then
 		GetWorkcenterID = 0
@@ -2334,14 +2420,14 @@ Private Function GetWorkcenterID(QuoteID, QuoteLineID, QuoteAssemblyID, Workcent
 		GetWorkcenterID = rsWorkcenterID.Fields("qmoQuoteOperationID").Value
 	End If
 End Function
-
+						
 Private Function CabinetBuilderPartIDTranslation(ByVal MaterialID, MaterialType)
 	Set rsuMaterials = CreateObject("ADODB.RecordSet")
 	rsuMaterials.Open _
 		"	SELECT ucmUnitOfIssueID, ucmPartID, ucmPartRevisionID " & _
 		"	FROM   uMaterials " & _
-		"	WHERE  ucmCabinetVisionID = " & App.ConvertNumberToSQL(MaterialID) & _
-		"	       AND ucmMaterialType = " & App.ConvertNumberToSQL(MaterialType), _
+		"	WHERE  ucmCabinetVisionID = " & App.Convert.NumberToSql(MaterialID) & _
+		"	       AND ucmMaterialType = " & App.Convert.NumberToSql(MaterialType), _
     Connection, adOpenStatic, adLockReadOnly, adCmdText
 	
 	If Not rsuMaterials.EOF then
@@ -2354,7 +2440,7 @@ Private Function CabinetBuilderPartIDTranslation(ByVal MaterialID, MaterialType)
 	
 	CabinetBuilderPartIDTranslation = Data
 End Function
-
+		
 Private Function JoinMap(ByRef rsDataRecord, ByVal DescriptionMap)
 	Output = ""
 	If DEBUG_MODE and Not IsArray(DescriptionMap) Then
@@ -2362,7 +2448,7 @@ Private Function JoinMap(ByRef rsDataRecord, ByVal DescriptionMap)
 		For Count = 0 to rsDataRecord.Fields.Count - 1
 			Data = Data & " " & rsDataRecord.Fields(Count).Name
 		Next
-		App.DebugLog Data, DEBUG_MODE
+'		App.DebugLog Data, DEBUG_MODE
 	End If
 	For Each Pair in DescriptionMap 
 		If Output <> "" Then 
@@ -2372,69 +2458,75 @@ Private Function JoinMap(ByRef rsDataRecord, ByVal DescriptionMap)
 		If uBound(Pair) >= 2 then
 			For Each OptionSet in Pair(2) 
 				If OptionSet(0) = rsDataRecord.Fields(Pair(1)).Value Then
-					App.DebugLog "JOIN MAP - 3 PAIR - " & Pair(0) & "|" & Pair(1), DEBUG_MODE
+'					App.DebugLog "JOIN MAP - 3 PAIR - " & Pair(0) & "|" & Pair(1), DEBUG_MODE
 					Output = Output & Pair(0) & " = " & Trim(OptionSet(1))
 					Exit For
 				End If
 			next
 		Else
-			App.DebugLog "JOIN MAP - 2 PAIR - " & Join(Pair, "|"), DEBUG_MODE
+'			App.DebugLog "JOIN MAP - 2 PAIR - " & Join(Pair, "|"), DEBUG_MODE
 			Output = Output & Pair(0) & " = " & Trim(rsDataRecord.Fields(Pair(1)).Value)
 		End If
 	Next
 
 	JoinMap = Output
 End Function
-
+					
 Private Function GetCVMaterials(TableID)
 	SET GetCVMaterials = MaterialsDBConnection.Execute("	SELECT * " & _
 	                                                   "	FROM   [tbl Material] " & _
-	                                                   "	WHERE  ID Like " & App.AddQuotes(TableID) & _
-													   												"											and ID >= 0")
+	                                                   "	WHERE  [ID] Like " & App.Convert.ToSql(TableID) & _
+													   												"											and [ID] >= 0")
 End Function
-
+					
+Private Function GetAllCVMaterials()
+	SET GetAllCVMaterials = MaterialsDBConnection.Execute("	SELECT * " & _
+	                                                   "	FROM   [tbl Material] " & _
+	                                                   "	WHERE  [ID] >= 0")
+End Function
+					
 Private Function GetCVSheet(SheetID)
 	Set GetCVSheet = MaterialsDBConnection.Execute("	SELECT  * " & _
 							          	 									    "	FROM    [tbl Sheet Size] " & _
-	                                               "	WHERE   [ID] LIKE " & App.ConvertNumberToSQL(SheetID))
+	                                               "	WHERE   [ID] LIKE " & App.Convert.NumberToSql(SheetID))
 End Function
-
+					
 Private Function GetProfiles(ProfileID)
 	SET GetProfiles = MaterialsDBConnection.Execute("	SELECT * " & _
 	                                                "	FROM   [tbl Profiles] " & _
-	                                                "	WHERE  [ID] = " & App.ConvertNumberToSQL(ProfileID))
+	                                                "	WHERE  [ID] = " & App.Convert.NumberToSql(ProfileID))
 End Function
-
+					
 Public Function IsLaborEnabled()
 	'if any parts with [material ID]=1381 exist, labor hasn't been turned on in CV
 	isLaborEnabled = ReportDBConnection.Execute("	SELECT	1 " & _
 							          	 									 "	FROM    Parts " & _
 	                                            "	WHERE   [Material ID] = 1381").EOF
 End Function
-	
+					
 private function GetRoomNameFromCabinetID (CabinetID)
 	GetRoomNameFromCabinetID = trim(reportDBConnection.Execute("	SELECT	RoomName" & _
 													          	 								"	FROM    Rooms " & _
 																											 "	INNER JOIN Cabinets " & _
 																											 "		ON (Cabinets.[Room ID] = Rooms.RoomNumber) " & _
 							                                         "	WHERE   Cabinets.[Cabinet ID] = " & _
-																											 App.ConvertNumberToSQL(CabinetID)).fields("RoomName").value)
+																											 App.Convert.NumberToSql(CabinetID)).fields("RoomName").value)
 end function
 					
 Private Function GetMaterialNameFromID (MaterialID)
 	getMaterialNameFromID = trim(materialsDBConnection.execute("	SELECT  name " & _
 																														"	FROM		[tbl material] " & _
-																														"	WHERE	 ID = " & App.ConvertNumberToSQL(MaterialID)).fields("Name").value)
+																														"	WHERE	 ID = " & App.Convert.NumberToSql(MaterialID)).fields("Name").value)
 end function
-
+					
 Private Function GetProfileNameFromID (ProfileID)
 	GetProfileNameFromID = trim(materialsDBConnection.execute("	SELECT  name " & _
 																														"	FROM		[tbl profiles] " & _
-																														"	WHERE	 ID = " & App.ConvertNumberToSQL(ProfileID)).fields("Name").value)
+																														"	WHERE	 ID = " & App.Convert.NumberToSql(ProfileID)).fields("Name").value)
 end function
 					
 Private Function GetRoomNameFromID (RoomNumber)
 	GetRoomNameFromID = trim(ReportDBConnection.execute("	SELECT  RoomName " & _
 																										  "	FROM		Rooms " & _
-																											"	WHERE	 RoomNumber = " & App.ConvertNumberToSQL(RoomNumber)).fields("RoomName").value)
+																											"	WHERE	 RoomNumber = " & App.Convert.NumberToSql(RoomNumber)).fields("RoomName").value)
 end function
