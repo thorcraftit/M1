@@ -34,7 +34,7 @@ Public Sub Class_Initialize
 	DEBUG_MODE = False
 	VERBOSE  = false
 	
-	ErrorMessages = Array()
+	'ErrorMessages = Array()
 	
 	Set wshShell = CreateObject("WScript.Shell")
 	UserProfile = wshShell.ExpandEnvironmentStrings("%USERPROFILE%")
@@ -83,6 +83,7 @@ Public Function CloseDatabases()
 		
 		DataBaseCount = DataBaseCount + 1
 	Loop
+	
 End Function
 
 Private Sub AddErrorMessage(Description)
@@ -90,12 +91,15 @@ Private Sub AddErrorMessage(Description)
 	ErrorMessages(uBound(ErrorMessages)) = Description
 End Sub
 
-Private Sub Class_Terminate() 
+Private Sub Class_Terminate()
 	CloseDatabases
 End Sub 
 
 'Don't want this to make the connection until the user requests it
 Public Function OpenDatabases()
+	
+	ErrorMessages = Array()
+	
 	Const TOTAL_DATABASES_TO_CONNECT = 3
 	DataBaseCount = 1
 	
@@ -423,6 +427,7 @@ Public Function CreateProjectQuoteLines(QuoteID, ProjectID, ProjectAreaID, Impor
 					 "Parts not found:" & vbnewline & vbnewline & _
 					  Join(ErrorMessages, vbNewLine), vbInformation + vbOKOnly, "Import Errors"         
 	End If
+		
 	CreateProjectQuoteLines = QuoteLines
 End Function
 		
@@ -650,11 +655,15 @@ Private Function ImportQuoteOperations(ByRef rsQuoteOperations, ByVal QuoteID, B
 	OperationID = 10
 	
 	Do While Not rsLabor.EOF
-		If DoesWorkCenterIDExist(rsLabor.Fields("Part ID").Value) Then
-				CreateQuoteOperation rsQuoteOperations, QuoteID, QuoteLineID, QuoteAssemblyID, _
-			                       OperationID, rsLabor.Fields("Part ID").Value, rsLabor.Fields("ProductionStandard").Value
+		
+		WorkCenterID = GetWorkCenter(rsLabor.Fields("Part ID").Value) 
+		
+		If WorkCenterID <> -1 Then
+				CreateQuoteOperation	rsQuoteOperations, QuoteID, QuoteLineID, QuoteAssemblyID, _
+															OperationID, WorkCenterID, rsLabor.Fields("ProductionStandard").Value
 		Else
-			AddErrorMessage "Workcenter ID " & Trim(rsLabor.Fields("Part ID").Value) & " not found."
+			AddErrorMessage "Error in labor " & Trim(rsLabor.Fields("Part ID").Value) & ". Exactly one work center must be linked. " & _ 
+											"Labor not added to quote."
 		End If
 		
 		OperationID = OperationID + 10
@@ -679,15 +688,26 @@ Private Function GetAssemblyOperations(RoomID, CabinetPartID, ImportType)
 																						             "	WHERE " & RoomWhereClause & _
 																												 "					AND " & CabinetWhereClause & _
 																						             "          AND Parts.Description LIKE '%Labor%' " & _
+																												 "					AND Parts.[Part ID] = 384 " & _ 
 																												 "	GROUP BY Parts.[Part ID], Parts.[Description] " & _
 																						             "	ORDER BY Parts.Description ")
 			
 End Function	
-				
-Private Function DoesWorkcenterIDExist(WorkcenterID)
-	DoesWorkcenterIDExist = Not Connection.Execute("	SELECT 1 " & _
-		                                             "	FROM   WorkCenters " & _
-		                                             "	WHERE  xawWorkCenterID = " & App.Convert.StringToSql(WorkcenterID)).EOF
+			
+Private Function GetWorkCenter(WorkcenterID)
+	dim rsWorkcenter
+	set rsWorkcenter = createobject("adodb.recordset")
+	rsWorkcenter.open  "	SELECT xawWorkCenterID " & _
+                     "	FROM   WorkCenters " & _
+                     "	WHERE  uxawCabinetVisionID = " & App.Convert.StringToSql(WorkcenterID), _
+										 Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	if rsWorkCenter.RecordCount = 1 then
+		GetWorkCenter = rsWorkCenter.fields("xawWorkCenterID").value
+	else
+		GetWorkCenter = -1
+	end if
+
 End Function
 			
 Private Function ImportQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByVal QuoteLineID, _
