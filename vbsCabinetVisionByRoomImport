@@ -645,7 +645,7 @@ End Function
 Private Function ImportQuoteOperations(ByRef rsQuoteOperations, ByVal QuoteID, ByVal QuoteLineID, _
 	                                     ByVal QuoteAssemblyID, ByVal RoomID, ByVal CabinetID, ByVal ImportType)
 'qwe
-	app.ax("QuoteFunctions").GetMethod QuoteID, QuoteLineID, QuoteAssemblyID, "TESTROOM", "", true, false, true, true, true ',,,,,,,,,,))
+	app.ax("QuoteFunctions").GetMethod QuoteID, QuoteLineID, QuoteAssemblyID, "ROOM", "", true, false, true, true, true ',,,,,,,,,,))
 	
 	Set rsLabor = GetAssemblyOperations(RoomID, CabinetID, ImportType)
 	set rsQuoteOperations = GetQuoteAssemblyOperations (QuoteID, QuoteLineID, QuoteAssemblyID)
@@ -673,7 +673,7 @@ Private Function ImportQuoteOperations(ByRef rsQuoteOperations, ByVal QuoteID, B
 		rsLabor.movenext
 	loop
 
-	'since we're using Get Part Method, we don't need to manually create the operations
+'  since we're using Get Part Method, we don't need to manually create the operations
 '	OperationID = 10
 '	
 '	Do While Not rsLabor.EOF
