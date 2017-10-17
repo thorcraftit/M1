@@ -6,31 +6,58 @@ Function cmdMarkOfficeOpsComplete_Click(sender, e)
 	
 	elseif trim(controls("txtJmpPartID").Value) <> "ROOM" then
 		
-		msgbox	"Cannot mark office operations complete on job " & trim(controls("txtjmpPartID").value) , _
+		msgbox	"Cannot mark operations complete on job " & trim(controls("txtjmpPartID").value) , _
 						vbExclamation + vbOkOnly, "Error: Job Type"
 	
 	else
-		dim rsJobOperations
-		set rsJobOperations = createobject("adodb.recordset")
-		rsJobOperations.Open	"	Select	jmoJobID, jmoJobAssemblyID, jmoJobOperationID, jmoProductionComplete " & _
-													"	from		JobOperations " & _
-													"	where 	jmoJobID = " & App.Convert.StringToSql(trim(controls("txtJmpJobID").Value)) & _
-													"			and (jmoProcessID in ('DRAFT', 'MRNG', 'UPDAT', 'NGNR') " & _
-													"			 or jmoProcessID in ('384', '385', '386', '387')) " & _
-													"			and jmoProductionComplete = 0 ", _
-													Connection,adOpenStatic,adLockReadOnly,adCmdText
+		MarkZeroOpsComplete
+		MarkOfficeOpsComplete
 		
-		do while not rsJobOperations.EOF
-			rsJobOperations.fields("jmoProductionComplete").value = 1
-			rsJobOperations.MoveNext()
-		loop
-			
-		rsJobOperations.UpdateBatch()
-		rsJobOperations.close
-	
 		this.OnDataChanged(3)
+		
 		msgbox "Success!"
 	end if
 End Function
 		
+Function MarkOfficeOpsComplete()
+	dim rsJobOperations
+	set rsJobOperations = createobject("adodb.recordset")
+	rsJobOperations.Open	"	Select	jmoJobID, jmoJobAssemblyID, jmoJobOperationID, jmoProductionComplete " & _
+												"	from		JobOperations " & _
+												"	where 	jmoJobID = " & App.Convert.StringToSql(trim(controls("txtJmpJobID").Value)) & _
+												"			and (jmoProcessID in ('DRAFT', 'MRNG', 'UPDAT', 'NGNR') " & _
+												"			 or jmoProcessID in ('384', '385', '386', '387')) " & _
+												"			and jmoProductionComplete = 0 ", _
+												Connection,adOpenStatic,adLockReadOnly,adCmdText
+	
+	do while not rsJobOperations.EOF
+		rsJobOperations.fields("jmoProductionComplete").value = 1
+		rsJobOperations.MoveNext()
+	loop
 		
+	rsJobOperations.UpdateBatch()
+	rsJobOperations.close
+	
+end function
+	
+Function MarkZeroOpsComplete()
+	dim rsJobOperations
+	set rsJobOperations = createobject("adodb.recordset")
+	rsJobOperations.Open	"	Select	jmoJobID, jmoJobAssemblyID, jmoJobOperationID, jmoProductionComplete, jmoQueueTime, jmoMoveTime " & _
+												"	from		JobOperations " & _
+												"	where 	jmoJobID = " & App.Convert.StringToSql(trim(controls("txtJmpJobID").Value)) & _
+												"			and jmoProductionStandard = 0 " & _
+												"			and jmoProductionComplete = 0 ", _
+												Connection,adOpenStatic,adLockReadOnly,adCmdText
+	
+	do while not rsJobOperations.EOF 
+		rsJobOperations.fields("jmoQueueTime").value = 0
+		rsJobOperations.fields("jmoMoveTime").value = 0
+		rsJobOperations.fields("jmoProductionComplete").value = 1
+		rsJobOperations.MoveNext()
+	loop
+		
+	rsJobOperations.UpdateBatch()
+	rsJobOperations.close
+	
+end function
