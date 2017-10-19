@@ -4,12 +4,13 @@ Function cmdMarkOfficeOpsComplete_Click(sender, e)
 		msgbox	"No job selected", _
 						vbExclamation + vbOkOnly, "Error: No job"
 	
-	elseif trim(controls("txtJmpPartID").Value) <> "ROOM" then
+	elseif trim(controls("txtJmpPartID").Value) <> "ROOM" and trim(controls("txtJmpPartID").Value) <> "REWORK" then
 		
 		msgbox	"Cannot mark operations complete on job " & trim(controls("txtjmpPartID").value) , _
 						vbExclamation + vbOkOnly, "Error: Job Type"
 	
 	else
+		
 		MarkZeroOpsComplete
 		MarkOfficeOpsComplete
 		
@@ -61,3 +62,12 @@ Function MarkZeroOpsComplete()
 	rsJobOperations.close
 	
 end function
+	
+Function chkJmpReleasedToFloor_UserChange(sender, e)
+	if controls("chkJmpReleasedToFloor").value = 0 then 
+		controls("uxujmpReleasedToFloorDateDateEditor").value = ""
+	else
+		controls("uxujmpReleasedToFloorDateDateEditor").value = now()
+	end if
+End Function
+
