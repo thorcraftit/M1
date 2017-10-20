@@ -1,5 +1,5 @@
-
-Function cmdDescriptionFromShipInfo_Click()
+'Function cmdDescriptionFromShipInfo_Click()
+Function cmdDescriptionFromShipInfo_Click(sender, e)
 	
 	if trim(controls("txtCmfOrganizationID").value) = "" or trim(controls("cmbCmfContactID").value) = "" then
 			Msgbox "Please enter an Organization and Contact", vbInformation + vbOKOnly
@@ -14,8 +14,8 @@ Function cmdDescriptionFromShipInfo_Click()
 			"				,cmlState " & _
 			"				,cmlPostCode " & _
 			"	FROM	OrganizationLocations " & _
-			"	WHERE	cmlOrganizationID = " & app.addquotes(trim(controls("txtCmfOrganizationID").value)) & _
-			"		and	cmlLocationID = " & app.addquotes(trim(controls("txtCmfLocationID").value)), _
+			"	WHERE	cmlOrganizationID = " & App.Convert.StringToSql(trim(controls("txtCmfOrganizationID").value)) & _
+			"		and	cmlLocationID = " & App.Convert.StringToSql(trim(controls("txtCmfLocationID").value)), _
 			Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 		
 			if trim(controls("cmbCmfContactID").value) <> "" then
@@ -25,20 +25,20 @@ Function cmdDescriptionFromShipInfo_Click()
 				"				,cmcPhoneNumber " & _
 				"				,cmcMobileNumber " & _
 				"	FROM	OrganizationContacts " & _
-				"	WHERE	cmcOrganizationID = " & app.addquotes(trim(controls("txtCmfOrganizationID").value)) & _
-				"		and	cmcLocationID = " & app.addquotes(trim(controls("txtCmfLocationID").value)) & _
-				"		and  cmcContactID = " & app.addquotes(trim(controls("cmbCmfContactID").value)), _
+				"	WHERE	cmcOrganizationID = " & App.Convert.StringToSql(trim(controls("txtCmfOrganizationID").value)) & _
+				"		and	cmcLocationID = " & App.Convert.StringToSql(trim(controls("txtCmfLocationID").value)) & _
+				"		and  cmcContactID = " & App.Convert.StringToSql(trim(controls("cmbCmfContactID").value)), _
 				Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 				
-				contactInfo = "Contact: " & vbnewline & _
-											trim(rsLongDescriptionContact.Fields("cmcName").value) & vbnewline & _
-											"Phone: " & trim(rsLongDescriptionContact.Fields("cmcPhoneNumber").value) & vbnewline & _
+				contactInfo = "Contact: " & _
+											trim(rsLongDescriptionContact.Fields("cmcName").value) & "\par " & _
+											"Phone: " & trim(rsLongDescriptionContact.Fields("cmcPhoneNumber").value) & "\par " & _
 											"Mobile: " & trim(rsLongDescriptionContact.Fields("cmcMobileNumber").value)
 			else
 					contactInfo = ""
 			end if
 				
-		'Make the address look nice
+		'Make the address look nice 
 		address = ""
 		if trim(rsLongDescriptionAddress.Fields("cmlAddressLine1").value) <> "" then
 			address = address & trim(rsLongDescriptionAddress.Fields("cmlAddressLine1").value)
@@ -51,12 +51,14 @@ Function cmdDescriptionFromShipInfo_Click()
 		if trim(rsLongDescriptionAddress.Fields("cmlAddressLine3").value) <> "" then
 			address = address & " " & trim(rsLongDescriptionAddress.Fields("cmlAddressLine3").value)
 		end if	
-			
-		controls("txtCmfLongDescriptionRTF").value =  trim(rsLongDescriptionAddress.Fields("cmlName").value) & vbnewline & _
-																									address & ", " & _
-																									trim(rsLongDescriptionAddress.Fields("cmlCity").value) & ", " & _
-																									trim(rsLongDescriptionAddress.Fields("cmlState").value) & ", " & _
-																									trim(rsLongDescriptionAddress.Fields("cmlPostCode").value) & vbnewline & vbnewline & _
-																									contactInfo																																										
+		
+		controls("txtcmfLongDescriptionRTF").valueRTF =  _
+							trim(rsLongDescriptionAddress.Fields("cmlName").value) & "\par " & _
+							address & ", " & _
+							trim(rsLongDescriptionAddress.Fields("cmlCity").value) & ", " & _
+							trim(rsLongDescriptionAddress.Fields("cmlState").value) & ", " & _
+							trim(rsLongDescriptionAddress.Fields("cmlPostCode").value) & "\par " & "\par " & _
+							ContactInfo		
 	end if
 End Function
+
