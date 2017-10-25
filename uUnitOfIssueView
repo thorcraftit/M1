@@ -5,9 +5,9 @@ end function
 
 Function cmdImport_Click(sender, e)
 	
-	call vbsCabinetVisionImport.OpenDatabases
-	call vbsCabinetVisionImport.ImportUnitOfIssue
-	call vbsCabinetVisionImport.CloseDatabases
+	call vbsCabinetVisionByRoomImport.OpenDatabases
+	call vbsCabinetVisionByRoomImport.ImportUnitOfIssue
+	call vbsCabinetVisionByRoomImport.CloseDatabases
 End Function
 
 Function cmdTestFormula_Click(sender, e)
