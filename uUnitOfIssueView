@@ -1,0 +1,35 @@
+Function this_initialize(sender, e)
+	includeScript "vbsCabinetVisionByRoomImport"
+	'includescript "vbsCabinetVisionImport"
+end function
+
+Function cmdImport_Click(sender, e)
+	
+	call vbsCabinetVisionImport.OpenDatabases
+	call vbsCabinetVisionImport.ImportUnitOfIssue
+	call vbsCabinetVisionImport.CloseDatabases
+End Function
+
+Function cmdTestFormula_Click(sender, e)
+	Formula = "" 
+	
+	Variables = Array("MaterialWaste", "PartsLength", _
+	                  "PartsWidth", "PartsArea", _
+	                  "MaterialRoughThickness", "SheetWidth", _
+	                  "SheetLength")
+	
+	For Each Item in Variables 
+		Execute Item & " = cDbl(Controls(""txt" & Item & """).Value)"
+	next
+
+	Execute Controls("uciQuantityFormulaTextBox").ValueText
+	
+	If Not IsNumeric(Formula) then 
+		Formula = 0
+	End If
+	Spacer = ""
+	If Len(cStr(Formula)) <= 50 Then
+		Spacer = String(50 - Len(cStr(Formula)), " ")
+	end if
+	MsgBox Formula & Spacer, vbInformation + vbOKOnly, "Results of Formula and Test Data"       
+End Function
