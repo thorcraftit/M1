@@ -1,3 +1,4 @@
+'frmSFEWorkQueue
 '----------M1 Code----------
 DebugMode = False
  
@@ -22,7 +23,7 @@ Function ProcessClockOut(Complete)
 		"	               ON lmlJobID = jmoJobID " & _
 		"	                  AND lmlJobAssemblyID = jmoJobAssemblyID " & _
 		"	                  AND lmlJobOperationID = jmoJobOperationID " & _
-		"	WHERE  lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+		"	WHERE  lmlEmployeeID = " & App.Convert.StringToSql(App.Ax("Production").EmployeeID) & _
 		"	       AND lmlActive <> 0 " & _
 		"	       AND lmlTimecardType = 1", _
 		Connection, adOpenStatic, adLockReadOnly, adCmdText
@@ -30,18 +31,20 @@ Function ProcessClockOut(Complete)
 	Const WORKCODE_PARTIAL = 1, WORKCODE_COMPLETE = 2
 	Do While Not rsTimecardLines.EOF
 		If Complete Then
-			Quantity = rsTimecardLines.Fields("QuantityToComplete").Value																												
+			Quantity = rsTimecardLines.Fields("QuantityToComplete").Value
 			CompletionType = WORKCODE_COMPLETE
 		Else
 			'Quantity = 0
-			Quantity = rsTimecardLines.Fields("QuantityToComplete").Value				 
+			Quantity = rsTimecardLines.Fields("QuantityToComplete").Value
 			CompletionType = WORKCODE_PARTIAL
 		End If
 		
+		'msgbox "Ending " & rsTimecardLines.Fields("lmlTimecardID").Value & "-" & rsTimecardLines.Fields("lmlTimecardLineID").Value & "QTY: " & Quantity
+		
 		StopProduction rsTimecardLines.Fields("lmlTimecardID").Value, _
                                rsTimecardLines.Fields("lmlTimecardLineID").Value, _
-                               Quantity, _
-															 0, CompletionType
+															 Quantity, _
+                               0, CompletionType
 		rsTimecardLines.MoveNext
 	Loop
 	rsTimecardLines.Close
@@ -70,7 +73,7 @@ Function cmdExecuteProjectString_Click()
 				StartIndirect (ArrayProjectAreaString(PROCESSS_ID))
 			case END_INDIRECT	
 				'msgbox "END_INDIRECT"
-				DebugLog "Ending Indirect: " & Join (ArrayProjectAreaString, "|"), DebugMode
+			DebugLog "Ending Indirect: " & Join (ArrayProjectAreaString, "|"), DebugMode
 				EndIndirect
 			Case START_JOB
 				EndAllTimecardLines
@@ -113,10 +116,9 @@ Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID)
 		"  FROM   JobOperations " & _
 		"	       INNER JOIN Jobs " & _
 		"	               ON jmoJobID = jmpJobID " & _
-		"	WHERE  jmoProcessID = " & App.AddQuotes(processID) & _
-		"         AND jmoProductionComplete = 0 " & _
-		"         AND jmpProjectID = " & App.AddQuotes(projectID) & _
-		"             AND jmpProjectAreaID = " & App.AddQuotes(projectAreaID), _
+		"	WHERE  jmoProcessID = " & App.Convert.StringToSql(processID) & _
+		"         AND jmpProjectID = " & App.Convert.StringToSql(projectID) & _
+		"             AND jmpProjectAreaID = " & App.Convert.StringToSql(projectAreaID), _
 		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 
 	if rsJobOperations.EOF then
@@ -129,7 +131,7 @@ Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID)
 	rsTimeCards.Open _
 		"	SELECT * " & _
 		"	FROM   TimeCards " & _
-		"	WHERE  lmpEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+		"	WHERE  lmpEmployeeID = " & App.Convert.StringToSql(App.Ax("Production").EmployeeID) & _
 		"	       AND lmpActive <> 0", _
 		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 	
@@ -150,8 +152,8 @@ Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID)
 			"	FROM   Shifts " & _
 			"	       LEFT JOIN ShiftBreaks " & _
 			"	              ON lmsShiftID = lmtShiftID " & _
-			"	WHERE  lmsShiftID = " & App.AddQuotes(rsTimeCards.Fields("lmpShiftID").Value) & _
-			"	       AND lmtDay = " & App.ConvertNumberToSQL(WeekDay(Date(), vbMonday)), _
+			"	WHERE  lmsShiftID = " & App.Convert.StringToSql(rsTimeCards.Fields("lmpShiftID").Value) & _
+			"	       AND lmtDay = " & App.Convert.NumberToSql(WeekDay(Date(), vbMonday)), _
 			Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 		
 		UpdateActualWithRound = Connection.Execute( _
@@ -162,7 +164,7 @@ Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID)
 		NextAvailableTimecardLineID = Connection.Execute( _
                                                  "	SELECT IsNull(Max(lmlTimecardLineID), 0) + 1 as NextNo " & _
                                                  "	FROM   TimecardLines " & _
-                                                 "	WHERE  lmlTimecardID = " & App.ConvertNumberToSQL(rsTimeCards.Fields("lmpTimecardID").Value) _
+                                                 "	WHERE  lmlTimecardID = " & App.Convert.NumberToSql(rsTimeCards.Fields("lmpTimecardID").Value) _
                                                                 ).Fields("NextNo").Value
 		StartTime = Now()
 		
@@ -194,15 +196,15 @@ Public Function EliminateAlreadyLoggedInOperations(ByRef rsStartingJobOperations
 	rsTimeCardLines.Open _
 		"	SELECT lmlJobID, lmlJobAssemblyID, lmlJobOperationID " & _
 		"	FROM   TimecardLines " & _
-		"	WHERE  lmlTimecardID = " & App.ConvertNumberToSQL(TimecardID) & _
+		"	WHERE  lmlTimecardID = " & App.Convert.NumberToSql(TimecardID) & _
 		"	       AND lmlActive <> 0", _
 		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 	
 	Do While Not rsStartingJobOperations.EOF
 		rsTimeCardLines.Filter = _
-		          "lmlJobID = " & App.AddQuotes(rsStartingJobOperations.Fields("jmoJobID").Value) & _
-		          " AND lmlJobAssemblyID = " & App.ConvertNumberToSQL(rsStartingJobOperations.Fields("jmoJobAssemblyID").Value) & _
-		          " AND lmlJobOperationID = " & App.ConvertNumberToSQL(rsStartingJobOperations.Fields("jmoJobOperationID").Value)
+		          "lmlJobID = " & App.Convert.StringToSql(rsStartingJobOperations.Fields("jmoJobID").Value) & _
+		          " AND lmlJobAssemblyID = " & App.Convert.NumberToSql(rsStartingJobOperations.Fields("jmoJobAssemblyID").Value) & _
+		          " AND lmlJobOperationID = " & App.Convert.NumberToSql(rsStartingJobOperations.Fields("jmoJobOperationID").Value)
 		
 		If Not rsTimeCardLines.EOF Then
 			rsStartingJobOperations.Delete
@@ -233,7 +235,7 @@ Public Function StartDirect(ByRef rsTimecardLines, ByRef rsTimecards, ByRef rsSh
 	rsTimecardLines.Fields("lmlShiftID").value = rsTimecards.Fields("lmpShiftID").Value
 	rsTimecardLines.Fields("lmlWorkType").value = 2
 	rsTimecardLines.Fields("lmlSource").value = 2
-	rsTimecardLines.Fields("lmlActive").value = -1
+	rsTimecardLines.Fields("lmlActive").value = True
 	rsTimecardLines.Fields("lmlActualStartTime").value = StartTime
 	
 	Const vbShortDate = 2
@@ -332,13 +334,12 @@ Sub ProcessOperation(projectID, projectAreaID, processID, Complete)
 		"	               ON jmoJobID = lmlJobID " & _
 		"	                  AND jmoJobAssemblyID = lmlJobAssemblyID " & _
 		"	                  AND jmoJobOperationID = lmlJobOperationID " & _
-		"	WHERE  lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+		"	WHERE  lmlEmployeeID = " & App.Convert.StringToSql(App.Ax("Production").EmployeeID) & _
 		"	       AND lmlActive <> 0 " & _
 		"	       AND lmlTimecardType = 1" & _
-		"	       AND jmoProductionComplete = 0 " & _
-		"	       AND jmpProjectID = " & App.AddQuotes(projectID) & _
-		"	       AND jmpProjectAreaID = " & App.AddQuotes(projectAreaID) & _
-		"	       AND jmoProcessID = " & App.AddQuotes(processID), _
+		"	       AND jmpProjectID = " & App.Convert.StringToSql(projectID) & _
+		"	       AND jmpProjectAreaID = " & App.Convert.StringToSql(projectAreaID) & _
+		"	       AND jmoProcessID = " & App.Convert.StringToSql(processID), _
 		Connection, adOpenStatic, adLockReadOnly, adCmdText
 	
 	Const WORKCODE_PARTIAL = 1, WORKCODE_COMPLETE = 2
@@ -364,10 +365,14 @@ End Sub
 Function StopProduction(ByVal TimecardID, ByVal TimecardLineID, ByVal Quantity, ByVal ScrapQuantity, ByVal CompletionType)
 	Const PAUSE_SECONDS = .5
 	ReturnValue = False 
+'	ReturnValue = App.Ax("TimecardFunctions").StopProductionJob(TimecardID, _
+'			                                                        TimecardLineID, _
+'			                                                        Quantity, ScrapQuantity, _
+'			                                                        CompletionType, "", "", "")
 	ReturnValue = App.TimecardFunctions.StopProductionJob(TimecardID, _
-                                                              TimecardLineID, _
-                                                              Quantity, ScrapQuantity, _
-                                                              CompletionType, "", "", "")
+			                                                  TimecardLineID, _
+			                                                  Quantity, ScrapQuantity, _
+			                                                  CompletionType, "", "", "")
 	If cbool(ReturnValue) = False Then
 		DebugLog "StopProductionJob returned false " & Join(Array(rsTimecardLines.Fields("lmlTimecardID").Value, _
 		                                                         rsTimecardLines.Fields("lmlTimecardLineID").Value)), true
@@ -388,7 +393,7 @@ Function DebugLog(Message, Record)
 		filetxt.Close 
 	End If
 End Function
-'----------M1 Code----------
+														
 
 Function EndAllTimecardLines()
 	Controls("cmdClockoutPartial").Enabled = False
@@ -400,32 +405,32 @@ End Function
 function DoesTimecardLineExist (TimeCardType)
 	DoesTimecardLineExist = not(Connection.Execute("	SELECT  1" & _
 							          	 											"	FROM    timecardlines " & _
-	                                           		"	WHERE	 lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+	                                           		"	WHERE	 lmlEmployeeID = " & App.Convert.StringToSql(App.Ax("Production").EmployeeID) & _
 																						 		"	       AND lmlActive <> 0 " & _
 																						 		"	       AND lmlTimecardType =" & TimecardType).EOF)	
 end function
 
 function EndIndirect ()
 	
-'SFE prevents multiple indirects at one time, but just in case load all active Indirect timecardlines into a recordset
+																																																											
 	Set rsTimecardLines = CreateObject("ADODB.RecordSet")
 	rsTimecardLines.Open _
 		"	SELECT lmlTimecardID, lmlTimecardLineID " & _
 		"	FROM	 TimecardLines WITH (NOLOCK) " & _
-		"	WHERE  lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+		"	WHERE  lmlEmployeeID = " & App.Convert.StringToSql(App.Ax("Production").EmployeeID) & _
 		"	       AND lmlActive <> 0 " & _
 		"	       AND lmlTimecardType = 2", _
 		Connection, adOpenStatic, adLockReadOnly, adCmdText
 	
-	'EndTime = now()
-	
+								 
+ 
 	do while not rsTimecardLines.EOF
-																																																						 
-																																									
-																							
+'		returnVal = App.Ax("TimecardFunctions").StopIndirectJob (rsTimecardLines.Fields("lmlTimecardID").value, _	
+'																					 							rsTimecardLines.Fields("lmlTimecardLineID").value, _
+'																					 							"", FALSE,now())
 		returnVal = App.TimecardFunctions.StopIndirectJob (rsTimecardLines.Fields("lmlTimecardID").value, _	
-																					 							rsTimecardLines.Fields("lmlTimecardLineID").value, _
-																					 							"", FALSE,now())
+																					 						rsTimecardLines.Fields("lmlTimecardLineID").value, _
+																					 						"", FALSE,now())
 		rsTimecardLines.MoveNext
 	loop
 end function
@@ -435,21 +440,21 @@ function StartIndirect (IndirectID)
 	InactiveIndirectCode = Connection.Execute ( _
 																					"	Select 	*	" & _
 																					"	FROM		 IndirectLaborCodes " & _
-																					"	WHERE		lmiIndirectLaborID = " & App.AddQuotes(IndirectID) & _
-																					"			 and lmiInactive <> -1 ").EOF
+																					"	WHERE		lmiIndirectLaborID = " & App.Convert.StringToSql(IndirectID) & _
+																					"			 and lmiInactive <> 1 ").EOF
 	
 	if InactiveIndirectCode then
 		msgbox "Indirect code not found", vbInformation + vbOKOnly, "Error"
 		exit function
 	end if
-	
+			
 	AlreadyActiveIndirect = not Connection.Execute ( _
 																								"	SELECT lmlTimecardID, lmlTimecardLineID " & _
 																								"	FROM	 TimecardLines WITH (NOLOCK) " & _
-																								"	WHERE  lmlEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+																								"	WHERE  lmlEmployeeID = " & App.Convert.StringToSql(App.Ax("Production").EmployeeID) & _
 																								"	       AND lmlActive <> 0 " & _
 																								"	       AND lmlTimecardType = 2").EOF		
-	 
+			
 	if AlreadyActiveIndirect then
 		msgbox "You may only clock in on one indirect code at a time.", vbInformation + vbOKOnly, "Error"
 		exit function
@@ -459,18 +464,17 @@ function StartIndirect (IndirectID)
 	CurrentTimecardID = Connection.Execute ( _
 																						"	select 	lmptimecardid " & _
 																						"	from 		timecards " & _
-																						"	where		lmpEmployeeID = " & App.AddQuotes(App.UserEmployeeID) & _
+																						"	where		lmpEmployeeID = " & App.Convert.StringToSql(App.Ax("Production").EmployeeID) & _
 																						"				and lmpActive <> 0 ").fields("LMPTIMECARDID").value
 	
 	'get employee's home department
 	HomeDepartment = Connection.Execute ( _
 																				"	SELECT 	lmeHomeProductionDepartmentID " & _
 																				"	FROM 		employees " & _		
-																				"	WHERE		lmeEmployeeID = " & App.AddQuotes(App.UserEmployeeID) _
+																				"	WHERE		lmeEmployeeID = " & App.Convert.StringToSql(App.Ax("Production").EmployeeID) _
 																			).Fields ("lmeHomeProductionDepartmentID").value
-	
-																																																								
-	returnvalue = app.TimecardFunctions.StartIndirect (CurrentTimecardID, HomeDepartment, IndirectID, now())
+
+		returnValue = app.TimecardFunctions.StartIndirect (CurrentTimecardID, HomeDepartment, IndirectID, now())
 	
 	'Controls("cmdOK").DoClick
 end function	
