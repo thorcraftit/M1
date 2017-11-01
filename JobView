@@ -66,8 +66,12 @@ end function
 Function chkJmpReleasedToFloor_UserChange(sender, e)
 	if controls("chkJmpReleasedToFloor").value = 0 then 
 		controls("uxujmpReleasedToFloorDateDateEditor").value = ""
+		controls("txtujmpReleasedByEmpId").value = ""
 	else
 		controls("uxujmpReleasedToFloorDateDateEditor").value = now()
+		controls("txtujmpReleasedByEmpId").value = App.Ax("Production").EmployeeID
 	end if
+	
 End Function
+
 
