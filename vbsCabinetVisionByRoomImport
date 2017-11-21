@@ -652,20 +652,18 @@ Private Function ImportQuoteOperations(ByRef rsQuoteOperations, ByVal QuoteID, B
 	set rsQuoteOperations = GetQuoteAssemblyOperations (QuoteID, QuoteLineID, QuoteAssemblyID)
 	
 	do while not rslabor.EOF
-				
-		rsQuoteOperations.filter = "uqmoCabinetVisionID = " & App.Convert.NumberToSql(rsLabor.fields("Part ID").value)
+		rsQuoteOperations.filter = "uqmoCabinetVisionID = " & app.Convert.NumberToSql(rsLabor.fields("Part ID").value)
 		
-		if not rsQuoteOperations.EOF then	
-			rsQuoteOperations.fields("qmoProductionStandard").value = cdbl(rsQuoteOperations.fields("qmoProductionStandard").value) _
-																																+ cdbl(rsLabor.fields("ProductionStandard").value)
-			rsQuoteOperations.fields("uqmoImported").value = true
-		else
+		if rsQuoteOperations.EOF then
 			AddErrorMessage "Operation for CV Labor ID " & Trim(rsLabor.Fields("Part ID").Value) & " not found."
+		else
+				rsQuoteOperations.fields("qmoProductionStandard").value = cdbl(rsQuoteOperations.fields("qmoProductionStandard").value) _
+																																	+ cdbl(rsLabor.fields("ProductionStandard").value)
+				rsQuoteOperations.fields("uqmoImported").value = true	
 		end if
 		
-		rsQuoteOperations.filter = nothing
-		rsQuoteOperations.MoveFirst
-			
+		rsQuoteOperations.filter = nothing	
+	
 		rsLabor.movenext
 	loop
 
@@ -773,7 +771,22 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 		
 		If Trim(PartKeys(0)) <> "" then
 			rsUnitOfIssue.filter = "uciUnitOfIssueID = " & App.Convert.NumberToSql(PartKeys(2))
-	
+			' working
+
+			' This is a hack
+			' but I could not for the life of me get the above rs.filter to work. 
+			' This appears to be an issue with M1v9?
+'			found = FALSE
+'			rsUnitOfIssue.MoveFirst
+'			do while not found and not rsUnitOfIssue.EOF
+'				if rsUnitOfIssue.fields("uciUnitOfIssueID").value = PartKeys(2) THEN
+'					found = TRUE
+'					exit do
+'				end if
+'				rsUnitOfIssue.MoveNext
+'			Loop
+'			' end hack
+
 			Set rsCVMaterials = GetCVMaterials(rsCabinetMaterials.Fields("Material ID").Value)
 			Set rsCVSheet = GetCVSheet(rsCVMaterials.Fields("Sheet").Value)
 			
@@ -807,6 +820,7 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 												GetRoomNameFromCabinetID (CabinetID) & ", Cab #" & _
 												CabinetID & ", ID " & trim(CVMaterial.fields("ID").value) 
 		End If
+		
 		rsUnitOfIssue.filter = nothing
 		rsCabinetMaterials.MoveNext
 	Loop
@@ -2178,8 +2192,6 @@ Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials,
 '																	" AND qmmPartRevisionID = " & App.Convert.StringToSql(PartRevisionID)
 '
 '		end if
-		
-		'''''''''''''''''''''''''''''
 		' Begin hack to replace rs.filters above
 		foundQuoteMaterial = FALSE
 		rsQuoteMaterials.MoveFirst
@@ -2212,7 +2224,7 @@ Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials,
 			End IF
 			rsQuoteMaterials.MoveNext
 		Loop
-		rsQuoteMaterials.Filter = nothing
+'		rsQuoteMaterials.filter = nothing
 		rsQuoteMaterials.MoveFirst						
 	End If
 
