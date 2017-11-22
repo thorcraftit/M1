@@ -45,9 +45,18 @@ Function UpdateRevisedPrices(ByVal cQuoteID, ByVal cQuoteLineID)
 		laborPrice = CalculateUnitPrice(CDbl(rsQuoteQuantities.Fields("qmqLaborCost").Value), CDbl(rsQuoteQuantities.Fields("qmqLaborMarkupPercent").Value), quoteMarkupType)
 		overheadPrice = CalculateUnitPrice(CDbl(rsQuoteQuantities.Fields("qmqOverheadCost").Value), CDbl(rsQuoteQuantities.Fields("qmqOverheadMarkupPercent").Value), quoteMarkupType)
 		AdditionalCostPrice = CalculateUnitPrice(CDbl(rsQuoteQuantities.Fields("qmqAdditionalCostAmount").Value), CDbl(rsQuoteQuantities.Fields("qmqAdditionalMarkupPercent").Value), quoteMarkupType)
-
-		totalUnitPrice = (materialPrice + subcontractingPrice + laborPrice + overheadPrice + AdditionalCostPrice) / _
-			                CDbl(rsQuoteQuantities.Fields("qmqQuoteQuantity").Value)
+		QuotingRate = CalculateUnitPrice(cdbl(rsQuoteQuantities.Fields("qmqQuotingCost").value), CDbl(rsQuoteQuantities.Fields("qmqQuotingMarkupPercent").Value), quoteMarkupType)
+		
+		QuotingMethod = cint(App.Props("QM").fields("xapQMQuotingMethod").value)
+		
+		if QuotingMethod = 1 then 'Use Quoting Rate method
+			totalUnitPrice = (materialPrice + subcontractingPrice + QuotingRate + AdditionalCostPrice) / _
+			                	CDbl(rsQuoteQuantities.Fields("qmqQuoteQuantity").Value)	
+		else 'Use Labor/overhead method
+			totalUnitPrice = (materialPrice + subcontractingPrice + laborPrice + overheadPrice + AdditionalCostPrice) / _
+			                	CDbl(rsQuoteQuantities.Fields("qmqQuoteQuantity").Value)	
+		end if
+		
 		totalCalculateUnitPrice = CalculateUnitPriceCommission(totalUnitPrice, CDbl(rsQuoteQuantities.Fields("qmqCommissionPercent").Value))
 
 		revisedUnitPriceBase = totalCalculateUnitPrice - CDbl(rsQuoteQuantities.Fields("qmqUnitDiscountBase").Value)
