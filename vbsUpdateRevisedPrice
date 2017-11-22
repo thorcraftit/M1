@@ -1,0 +1,163 @@
+'Duplicate Code Changes to vbsUpdateRevisedPrice, QuoteLine Custom Trigger, Quote Assembly/Operation/Material Custom Trigger
+Function UpdateRevisedPrices(ByVal cQuoteID, ByVal cQuoteLineID)
+
+	Dim rsQuoteQuantities
+	Dim totalUnitPrice
+	Dim totalCalculateUnitPrice
+	Dim materialPrice
+	Dim subcontractingPrice
+	Dim laborPrice
+	Dim overheadPrice
+	Dim revisedUnitPriceBase
+	Dim revisedUnitPriceForeign
+	Dim quoteMarkupType
+	
+	Set rsQuoteQuantities = CreateObject("ADODB.Recordset")
+	
+	ForceRefreshQuantityMatrix cQuoteID, cQuoteLineID
+	
+	rsQuoteQuantities.Open " SELECT  * " & _ 
+											   " FROM    QuoteQuantities " & _ 
+											   " WHERE   qmqQuoteID = " & App.Convert.StringToSql(cQuoteID) & _ 
+											   "         AND qmqQuoteLineID = " & App.Convert.StringToSql(cQuoteLineID), _
+											   Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	If rsQuoteQuantities.EOF Then
+		UpdateRevisedPrices = False
+		Exit Function
+	End If
+			
+	TaxCodeID = connection.execute ("Select qmlTaxCodeID " & _
+																	"from 	QuoteLines " & _
+																	"where	qmlQuoteID = "  & App.Convert.StringToSql(cQuoteID) & _ 
+																	"		and qmlQuoteLineID = " & App.Convert.StringToSql(cQuoteLineID)).fields("qmlTaxCodeID").value
+			
+	SecondTaxCodeID = connection.execute ("Select qmlSecondTaxCodeID " & _
+																				"from 	QuoteLines " & _
+																				"where	qmlQuoteID = "  & App.Convert.StringToSql(cQuoteID) & _ 
+																				"	 and qmlQuoteLineID = " & App.Convert.StringToSql(cQuoteLineID)).fields("qmlSecondTaxCodeID").value
+
+	quoteMarkupType = GetQuoteMarkupType(cQuoteID,cQuoteLineID)
+			
+	Do While Not rsQuoteQuantities.EOF
+		materialPrice = CalculateUnitPrice(CDbl(rsQuoteQuantities.Fields("qmqMaterialCost").Value), CDbl(rsQuoteQuantities.Fields("qmqMaterialMarkupPercent").Value), quoteMarkupType)
+		subcontractingPrice = CalculateUnitPrice(CDbl(rsQuoteQuantities.Fields("qmqSubcontractCost").Value), CDbl(rsQuoteQuantities.Fields("qmqSubcontractMarkupPercent").Value), quoteMarkupType)
+		laborPrice = CalculateUnitPrice(CDbl(rsQuoteQuantities.Fields("qmqLaborCost").Value), CDbl(rsQuoteQuantities.Fields("qmqLaborMarkupPercent").Value), quoteMarkupType)
+		overheadPrice = CalculateUnitPrice(CDbl(rsQuoteQuantities.Fields("qmqOverheadCost").Value), CDbl(rsQuoteQuantities.Fields("qmqOverheadMarkupPercent").Value), quoteMarkupType)
+		AdditionalCostPrice = CalculateUnitPrice(CDbl(rsQuoteQuantities.Fields("qmqAdditionalCostAmount").Value), CDbl(rsQuoteQuantities.Fields("qmqAdditionalMarkupPercent").Value), quoteMarkupType)
+
+		totalUnitPrice = (materialPrice + subcontractingPrice + laborPrice + overheadPrice + AdditionalCostPrice) / _
+			                CDbl(rsQuoteQuantities.Fields("qmqQuoteQuantity").Value)
+		totalCalculateUnitPrice = CalculateUnitPriceCommission(totalUnitPrice, CDbl(rsQuoteQuantities.Fields("qmqCommissionPercent").Value))
+
+		revisedUnitPriceBase = totalCalculateUnitPrice - CDbl(rsQuoteQuantities.Fields("qmqUnitDiscountBase").Value)
+		revisedUnitPriceForeign = totalCalculateUnitPrice - CDbl(rsQuoteQuantities.Fields("qmqUnitDiscountForeign").Value)
+		
+		UnitTaxAmountBase = app.ax("Financial").CalculateTaxOnSubTotal(TaxCodeID, revisedUnitPriceBase, now())
+		UnitSecondTaxAmountBase = app.ax("Financial").CalculateTaxOnSubTotal(SecondTaxCodeID, revisedUnitPriceBase, now(), UnitTaxAmountBase)
+
+    UpdateQuoteQuantity cQuoteID, _
+                        cQuoteLineID, _
+                        rsQuoteQuantities.Fields("qmqQuoteQuantityID").Value, _
+                        totalCalculateUnitPrice, _
+                        revisedUnitPriceBase, _
+                        revisedUnitPriceForeign, _
+	                      UnitTaxAmountBase, _
+                        UnitSecondTaxAmountBase
+		
+		rsQuoteQuantities.MoveNext
+	Loop
+
+	rsQuoteQuantities.Close
+
+	UpdateRevisedPrices = True
+End Function
+		
+'Function ForeRefreshTaxes(ByVal cQuoteID, ByVal cQuoteLineID)
+'	msgbox "ForeRefreshTaxes"
+'	Dim oQuote
+'	Set oQuote = CreateObject("ADODB.Recordset")
+'
+'	Connection.Execute " UPDATE QuoteLines " & _ 
+'	                   " SET qmlTaxesCalculated = 0" & _ 
+'					   				" WHERE   qmlQuoteID = " & App.Convert.StringToSql(cQuoteID) & _ 
+'			           		"         AND qmlQuoteLineID = " & App.Convert.StringToSql(cQuoteLineID)
+'	
+'	oQuote.open " SELECT  qmlQuoteID, " & _
+'					    "         qmlQuoteLineID, " & _
+'							"         qmlTaxesCalculated, " & _
+'							"         qmlTaxCodeID, " & _
+'							"         qmlSecondTaxCodeID " & _
+'							" FROM    QuoteLines " & _ 
+'							" WHERE   qmlQuoteID = " & App.Convert.StringToSql(cQuoteID) & _ 
+'					    "         AND qmlQuoteLineID = " & App.Convert.StringToSql(cQuoteLineID), _
+'					    Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+'	oQuote.MoveFirst
+'	
+'	app.Ax("QuoteFunctions").RefreshTaxes oQuote
+'	oQuote.Close
+'End Function
+	
+Private Function GetQuoteMarkupType(ByVal cQuoteID, ByVal cQuoteLineID)
+	
+	Dim rsQuotes
+	Set rsQuotes = CreateObject("ADODB.Recordset")
+	rsQuotes.Open " SELECT qmlQuoteMarkupType " & _
+	              " FROM   QuoteLines " & _
+							  " WHERE  qmlQuoteID = " & App.Convert.StringToSql(Trim(cQuoteID)) & _
+							  "        AND qmlQuoteLineID = " & App.Convert.StringToSql(Trim(cQuoteLineID)), _
+				  Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	If Not rsQuotes.EOF Then
+		rsQuotes.MoveFirst
+		GetQuoteMarkupType = CInt(rsQuotes.Fields("qmlQuoteMarkupType").Value)
+		Exit Function
+	End If
+	
+	GetQuoteMarkupType = 1
+End Function
+		
+Private Sub UpdateQuoteQuantity(ByVal cQuoteID, ByVal cQuoteLineID, ByVal cQuoteQuantityID, _
+                                ByVal totalCalculateUnitPrice, ByVal revisedUnitPriceBase, _
+																ByVal revisedUnitPriceForeign, ByVal UnitTaxAmountBase, _
+																ByVal UnitSecondTaxAmountBase)
+
+	Connection.Execute " UPDATE QuoteQuantities " & _
+		                 " SET     qmqFullRevisedUnitPriceBase = " & App.Convert.StringToSql(Round(totalCalculateUnitPrice, 2)) & _
+									   "         , qmqFullRevisedUnitPriceForeign = " & App.Convert.StringToSql(Round(totalCalculateUnitPrice, 2)) & _
+									   "         , qmqRevisedUnitPriceBase = " & App.Convert.StringToSql(Round(revisedUnitPriceBase, 2)) & _
+									   "         , qmqRevisedUnitPriceForeign = " & App.Convert.StringToSql(Round(revisedUnitPriceForeign, 2)) & _
+										 "         , qmqUnitTaxAmountBase = " & App.Convert.StringToSql(Round(UnitTaxAmountBase, 2)) & _
+									   "         , qmqUnitSecondTaxAmountBase = " & App.Convert.StringToSql(Round(UnitSecondTaxAmountBase, 2)) & _
+									   " WHERE   qmqQuoteID = " & App.Convert.StringToSql(cQuoteID) & _ 
+									   "         AND qmqQuoteLineID = " & App.Convert.StringToSql(cQuoteLineID) & _
+									   "         AND qmqQuoteQuantityID = " & App.Convert.StringToSql(cQuoteQuantityID)
+End Sub
+		
+Private Function CalculateUnitPrice(ByVal unitCost, ByVal markupPercentage, ByVal markupType)
+
+	Dim unitPrice
+	unitPrice = 0
+
+	If markupType = 1 Then
+		unitPrice = unitCost * (1 + markupPercentage / 100)
+	ElseIf markupType = 2 Then
+		unitPrice = unitCost / (1 - markupPercentage / 100)
+	End If
+	
+	CalculateUnitPrice = unitPrice
+End Function
+
+Private Function CalculateUnitPriceCommission(ByVal totalUnitPrice, ByVal commissionPercent)
+	CalculateUnitPriceCommission = totalUnitPrice /(1 -(commissionPercent / 100))
+End Function
+
+Private Sub	ForceRefreshQuantityMatrix(ByVal cQuoteID, ByVal cQuoteLineID)
+	sWhere = " qmlQuoteID = " & App.Convert.StringToSql(Trim(cQuoteID)) & _ 
+		     	" AND qmlQuoteLineID = " & App.Convert.StringToSql(Trim(cQuoteLineID))
+	
+	Connection.Execute " UPDATE QuoteLines " & _ 
+	                   " SET qmlMatrixCalculated = 0" & _ 
+					   				" WHERE " & sWhere
+	App.Ax("Quote").RefreshMatrix(sWhere)
+End Sub		
