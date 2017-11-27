@@ -4,12 +4,14 @@ DebugMode = False
  
 Function cmdClockoutPartial_Click()
 	Controls("cmdClockoutPartial").Enabled = False
+	EndIndirect
 	ProcessClockOut False
 	Controls("cmdClockoutPartial").Enabled = True
 End Function
  
 Function cmdClockoutComplete_Click()
 	Controls("cmdClockoutComplete").Enabled = False
+	EndIndirect
 	ProcessClockOut True
 	Controls("cmdClockoutComplete").Enabled = True
 End Function
@@ -118,7 +120,7 @@ Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID)
 		"	               ON jmoJobID = jmpJobID " & _
 		"	WHERE  jmoProcessID = " & App.Convert.StringToSql(processID) & _
 		"         AND jmpProjectID = " & App.Convert.StringToSql(projectID) & _
-		"             AND jmpProjectAreaID = " & App.Convert.StringToSql(projectAreaID), _
+		"         AND jmpProjectAreaID = " & App.Convert.StringToSql(projectAreaID), _
 		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 
 	if rsJobOperations.EOF then
