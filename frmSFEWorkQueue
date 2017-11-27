@@ -50,7 +50,7 @@ Function ProcessClockOut(Complete)
 		rsTimecardLines.MoveNext
 	Loop
 	rsTimecardLines.Close
-	Controls("cmdOK").DoClick
+	'Controls("cmdOK").DoClick
 End Function
 
 Function cmdProjectAreaJobs_Click()
