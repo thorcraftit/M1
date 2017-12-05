@@ -120,7 +120,8 @@ Sub StartAllProjectAreaJobs(projectID, projectAreaID, processID)
 		"	               ON jmoJobID = jmpJobID " & _
 		"	WHERE  jmoProcessID = " & App.Convert.StringToSql(processID) & _
 		"         AND jmpProjectID = " & App.Convert.StringToSql(projectID) & _
-		"         AND jmpProjectAreaID = " & App.Convert.StringToSql(projectAreaID), _
+		"         AND jmpProjectAreaID = " & App.Convert.StringToSql(projectAreaID) & _
+		"				 AND jmpProductionComplete = 0 ", _
 		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
 
 	if rsJobOperations.EOF then
