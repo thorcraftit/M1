@@ -1,0 +1,62 @@
+Function UpdateProjectContact()
+	Dim rsProjectContact
+	Set rsProjectContact = CreateObject("ADODB.Recordset")
+	rsProjectContact.Open " select cmcName, cmcContactTitleID, ucmcPreferPhone, ucmcPreferEmail, " & _
+												" ucmcPreferMobile, ucmcPreferText, cmcEmailAddress " & _
+												" from OrganizationContacts " & _
+												" where cmcOrganizationID = " + App.Convert.StringToSql(controls("txtPrcOrganizationID").Value) & _
+												" and cmcLocationID = " + App.Convert.StringToSql(controls("txtprcLocationID").Value) & _
+												" and cmcContactID = " + App.Convert.StringToSql(controls("cmbprcContactID").Value), _
+				 Connection,adOpenStatic,adLockReadOnly,adCmdText
+	If rsProjectContact.EOF = False Then
+		controls("txtuprcContactName").Value = rsProjectContact.Fields("cmcName").Value
+		controls("txtuprcContactTitle").Value = rsProjectContact.Fields("cmcContactTitleID").Value
+
+		controls("cmbprcContactTitleID").Value = rsProjectContact.Fields("cmcContactTitleID").Value
+		controls("cmbprcContactTitleID").ReadOnly = true
+		
+		controls("chkPreferPhone").Value = rsProjectContact.Fields("ucmcPreferPhone").Value
+		controls("chkPreferPhone").Enabled = false
+
+		controls("chkPreferEmail").Value = rsProjectContact.Fields("ucmcPreferEmail").Value
+		controls("chkPreferEmail").Enabled = false
+	
+		controls("chkPreferMobile").Value = rsProjectContact.Fields("ucmcPreferMobile").Value
+		controls("chkPreferMobile").Enabled = false
+		
+		controls("chkPreferText").Value = rsProjectContact.Fields("ucmcPreferText").Value
+		controls("chkPreferText").Enabled = false
+		
+		controls("txtEmailAddress").Value = rsProjectContact.Fields("cmcEmailAddress").Value
+		controls("txtEmailAddress").ReadOnly = true
+					
+	End If
+	rsProjectContact.Close
+end function
+
+function cmdSendEmail_Click(sender, e) 
+'	EmailAddress = cstr(controls("txtEmailAddress").Value)
+'	if EmailAddress <> "" then 
+'		'Forms.SendEmail "njmccorkle@gmail.com","test"
+'	end if
+end function
+
+Function txtPrcOrganizationID_UserChange(sender, e)
+	UpdateProjectContact
+End Function
+
+Function txtprcLocationID_UserChange(sender, e)
+	UpdateProjectContact
+End Function
+
+Function cmbprcContactID_UserChange(sender, e)
+	UpdateProjectContact
+End Function
+
+Function M1DataControl_RecordChange(sender, e)
+    UpdateProjectContact
+End Function
+
+Function M1DataControl_SaveDataCompleted(sender, e)
+    UpdateProjectContact
+End Function
