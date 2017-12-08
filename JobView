@@ -11,8 +11,9 @@ Function cmdMarkOfficeOpsComplete_Click(sender, e)
 	
 	else
 		
-		MarkZeroOpsComplete
-		MarkOfficeOpsComplete
+		call MarkZeroOpsComplete
+		call MarkOfficeOpsComplete
+		call MarkJunkMaterialsComplete
 		
 		this.OnDataChanged(3)
 		
@@ -20,7 +21,7 @@ Function cmdMarkOfficeOpsComplete_Click(sender, e)
 	end if
 End Function
 		
-Function MarkOfficeOpsComplete()
+sub MarkOfficeOpsComplete()
 	dim rsJobOperations
 	set rsJobOperations = createobject("adodb.recordset")
 	rsJobOperations.Open	"	Select	jmoJobID, jmoJobAssemblyID, jmoJobOperationID, jmoProductionComplete " & _
@@ -39,9 +40,9 @@ Function MarkOfficeOpsComplete()
 	rsJobOperations.UpdateBatch()
 	rsJobOperations.close
 	
-end function
+end sub
 	
-Function MarkZeroOpsComplete()
+sub MarkZeroOpsComplete()
 	dim rsJobOperations
 	set rsJobOperations = createobject("adodb.recordset")
 	rsJobOperations.Open	"	Select	jmoJobID, jmoJobAssemblyID, jmoJobOperationID, jmoProductionComplete, jmoQueueTime, jmoMoveTime " & _
@@ -61,7 +62,7 @@ Function MarkZeroOpsComplete()
 	rsJobOperations.UpdateBatch()
 	rsJobOperations.close
 	
-end function
+end sub
 	
 Function chkJmpReleasedToFloor_UserChange(sender, e)
 	if controls("chkJmpReleasedToFloor").value = 0 then 
@@ -74,4 +75,23 @@ Function chkJmpReleasedToFloor_UserChange(sender, e)
 	
 End Function
 
-
+sub MarkJunkMaterialsComplete () 
+	'dim rsJobMaterials
+	set rsJobMaterials = createobject("adodb.recordset")
+	rsJobMaterials.Open	 " Select * " & _
+												" from 	JobMaterials " & _
+												" where 	jmmJobID = " & App.Convert.StringToSql(trim(controls("txtJmpJobID").Value)) & _
+												"		 and jmmPartID = " & App.Convert.StringToSql("100000"), _ 
+												Connection,adOpenStatic,adLockReadOnly,adCmdText
+	'Fudge factor part number
+	do while not rsJobMaterials.EOF 
+		rsJobMaterials.fields("jmmReceivedComplete").value = 1
+		rsJobMaterials.MoveNext()
+	loop
+		
+	rsJobMaterials.UpdateBatch()
+	rsJobMaterials.close
+	
+end sub
+	
+	
