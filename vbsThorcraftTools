@@ -1,0 +1,27 @@
+sub ShowLocationOnMap (ByVal OrgID, ByVal LocationID)
+	
+	if trim(LocationID) = "" then 
+	end if
+	
+	Dim rsOrgLocation
+	Set rsOrgLocation = CreateObject("ADODB.Recordset")
+	rsOrgLocation.Open " select cmlAddressLine1, cmlAddressLine2, cmlCity, cmlState, cmlPostCode, cmlCountry " & _
+												" from OrganizationLocations " & _
+												" where cmlOrganizationID = " & App.Convert.StringToSql(trim(OrgID)) & _
+												" and cmlLocationID = " & App.Convert.StringToSql(trim(LocationID)), _
+				 							 Connection,adOpenStatic,adLockReadOnly,adCmdText
+
+	if not rsOrgLocation.EOF then
+		Call Forms.Show.MapLocation(rsOrgLocation.fields("cmlAddressLine1").value, _
+																rsOrgLocation.Fields("cmlAddressLine2").value, _
+													 		 rsOrgLocation.Fields("cmlCity").value, _
+																rsOrgLocation.Fields("cmlState").value, _
+																rsOrgLocation.Fields("cmlPostCode").value, _
+																rsOrgLocation.Fields("cmlCountry").value)
+	else
+		msgbox "No location found."
+	end if
+				
+	rsOrgLocation.close
+		
+end sub
