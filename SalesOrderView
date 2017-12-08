@@ -23,9 +23,7 @@ Function UpdateCustomerName(ByVal SalesOrderID, ByVal OrganizationLocationID, By
 				rsSalesOrder.fields("uompCustomerName").value = rsCustLookup.fields("cmlName").value
 				rsSalesOrder.UpdateBatch
 			end if
-			
 		end if	
-
 	End If
 	rsCustLookup.Close
 
@@ -101,4 +99,13 @@ End Function
 
 Function this_Initialize(sender, e)
 	includescript "vbsSalesOrderTotals"
+	includescript "vbsThorcraftTools"
 End Function
+
+Function cmdMapShippingAddress_Click(sender, e)
+	call vbsThorcraftTools.ShowLocationOnMap (controls("txtOmpShipOrganizationID").Value, controls("txtOmpShipLocationID").Value)
+End Function
+		
+		
+		
+		
