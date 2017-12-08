@@ -1,0 +1,52 @@
+Function this_initialize(sender, e)
+	call MarkAsReadOnly
+End Function
+
+Function M1DataControl_RecordChange(sender, e)
+	call MarkAsReadOnly
+End Function
+
+Function cmbSalesOrderContactID_UserChange(sender, e)
+	call MarkAsReadOnly
+	
+	Set rsContact = CreateObject("ADODB.Recordset")
+	rsContact.Open	" select cmcName " & _
+									" from OrganizationContacts " & _
+									" where cmcOrganizationID = " + App.Convert.StringToSql(controls("txtuocOrganizationID").Value) & _
+									" and cmcLocationID = " + App.Convert.StringToSql(controls("txtuocLocationID").Value) & _
+									" and cmcContactID = " + App.Convert.StringToSql(controls("cmbSalesOrderContactID").Value), _
+				 Connection,adOpenStatic,adLockReadOnly,adCmdText
+	If rsContact.EOF = False Then
+		controls("txtuocContactName").Value = rsContact.Fields("cmcName").Value
+	end if
+End Function
+
+sub MarkAsReadOnly() 
+	controls("txtPhoneNumber").ReadOnly = true
+	controls("txtAlternatePhoneNUmber").ReadOnly = true
+	controls("txtMobileNumber").ReadOnly = true
+	controls("txtFaxNumber").ReadOnly = true
+	controls("txtEmailAddress").ReadOnly = true
+	controls("chkPreferPhone").Enabled = false
+	controls("chkPreferMobile").Enabled = false
+	controls("chkPreferText").Enabled = false
+	controls("chkPreferEmail").Enabled = false
+end sub
+
+Function cmdShowOnMap_Click(sender, e)
+	Dim rsOrgLocation
+	Set rsOrgLocation = CreateObject("ADODB.Recordset")
+	rsOrgLocation.Open " select cmlAddressLine1, cmlAddressLine2, cmlCity, cmlState, cmlPostCode, cmlCountry " & _
+												" from OrganizationLocations " & _
+												" where cmlOrganizationID = " & App.Convert.StringToSql(controls("txtuocOrganizationID").Value) & _
+												" and cmlLocationID = " & App.Convert.StringToSql(controls("txtuocLocationID").Value), _
+				 							 Connection,adOpenStatic,adLockReadOnly,adCmdText
+
+	Call Forms.Show.MapLocation(rsOrgLocation.fields("cmlAddressLine1").value, _
+															rsOrgLocation.Fields("cmlAddressLine2").value, _
+												 		 rsOrgLocation.Fields("cmlCity").value, _
+															rsOrgLocation.Fields("cmlState").value, _
+															rsOrgLocation.Fields("cmlPostCode").value, _
+															rsOrgLocation.Fields("cmlCountry").value)
+	rsOrgLocation.close
+End Function
