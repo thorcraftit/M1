@@ -1,0 +1,203 @@
+private rsTimecards
+private rsTimecardLines
+
+function this_initialize (sender, e)
+	set rsTimecards = CreateObject("ADODB.Recordset")
+	controls("txtStartDate").value = "2017-12-17"
+	controls("txtEndDate").value = "2017-12-30"
+	
+	'set defaults
+	controls("txtCLAYIndirectID").value = "IND"
+	controls("txtCLAYAssemblyID").value = 0
+	controls("txtCLAYOperationID").value = 10
+	controls("txtCLAYProcessID").value = "PROD"
+	
+	controls("txtCLAYIndirectID").Enabled = false
+	controls("txtCLAYAssemblyID").Enabled = false
+	controls("txtCLAYOperationID").Enabled = false
+	controls("txtCLAYProcessID").Enabled = false
+	
+	controls("chkLaborCorrected").Enabled = false
+		
+	controls("chkAllowEditingCLAYLinks").value = false
+	
+	Set rsTimecards = GetTimecards(controls("txtStartDate").value, controls("txtEndDate").value)
+	Set rsTimecardLines = GetTimecardLines(controls("txtStartDate").value, controls("txtEndDate").value)
+	Controls("grdTimecards").RefreshRS rsTimecards	
+	Controls("grdTimecardLines").RefreshRS rsTimecardLines
+	
+	'Controls("grdTimecards").readonly = true
+	
+end function
+
+function chkAllowEditingCLAYLinks_UserChange(sender, e)
+	controls("txtCLAYIndirectID").Enabled = controls("chkAllowEditingCLAYLinks").value
+	controls("txtCLAYAssemblyID").Enabled = controls("chkAllowEditingCLAYLinks").value
+	controls("txtCLAYOperationID").Enabled = controls("chkAllowEditingCLAYLinks").value
+	controls("txtCLAYProcessID").Enabled = controls("chkAllowEditingCLAYLinks").value
+End Function
+
+Function cmdGetData_Click(sender, e)
+	if	controls("txtStartDate").value = "" or controls("txtEndDate").value = "" or _ 
+			controls("txtStartDate").value > controls("txtEndDate").value then 
+		msgbox "Invalid dates. Exiting without change."
+		exit function
+	end if
+	Set rsTimecards = GetTimecards(controls("txtStartDate").value, controls("txtEndDate").value)
+	Set rsTimecardLines = GetTimecardLines(controls("txtStartDate").value, controls("txtEndDate").value)
+	Controls("grdTimecards").RefreshRS rsTimecards	
+	Controls("grdTimecardLines").RefreshRS rsTimecardLines
+End Function
+
+private function GetTimecards (StartDate, EndDate) 
+	Set rs = CreateObject("ADODB.Recordset")
+	rs.Open "	select Timecards.* " & _
+					"	from Timecards " & _
+					"	inner join Employees on lmpEmployeeID = lmeEmployeeID " & _
+					"	where lmpTimeCardDate >= " & app.convert.DateToSql(StartDate) & _
+					"		and lmpTimecardDate < " & app.convert.DateToSql(DateAdd("D", 1,EndDate)) & _
+					"		and ulmeCLAYEmployee = 1" & _
+					"	Order By lmpTimecardID ", _
+					Connection,adOpenStatic,adLockReadOnly,adCmdText
+
+	Set GetTimecards = rs
+end function
+	
+private function GetTimecardLines (StartDate, EndDate) 
+	Set rs = CreateObject("ADODB.Recordset")
+	rs.Open "	select TimecardLines.* " & _
+					"	from Timecards " & _
+					"	inner join Employees on lmpEmployeeID = lmeEmployeeID " & _
+					"	inner join TimecardLines on lmpTimecardID = lmlTimecardID " & _
+					"	where lmpTimeCardDate >= " & app.convert.DateToSql(StartDate) & _
+					"		and lmpTimecardDate < " & app.convert.DateToSql(DateAdd("D", 1,EndDate)) & _
+					"		and ulmeCLAYEmployee = 1" & _
+					"	order by lmlTimecardID, lmlTimecardLineID", _
+					Connection,adOpenStatic,adLockReadOnly,adCmdText
+	set t = createobject("adodb.recordset")
+	
+	rs.FieldsCollection.Remove("lmlCreatedFromMobile")
+	set GetTimecardLines = rs
+end function
+
+Function CorrectIndirectLabor()
+	'filter rsTimecardLines down to just indirect lines
+	rsTimecardLines.filter =	"lmlTimecardType <> 1 "
+	
+	do while not rsTimecardLines.EOF
+		
+		Select case rsTimecardLines.fields("lmlIndirectLaborID").value 
+			CASE "HOL"
+				rsTimecardLines.fields("lmlWorkcenterID").value = GetEmployeePayrollDef(rsTimecardLines.fields("lmlEmployeeID").value)
+			CASE "IDLE"
+				rsTimecardLines.fields("lmlWorkcenterID").value = GetEmployeePayrollDef(rsTimecardLines.fields("lmlEmployeeID").value)
+			CASE "PTO"
+				rsTimecardLines.fields("lmlWorkcenterID").value = GetEmployeePayrollDef(rsTimecardLines.fields("lmlEmployeeID").value)
+			CASE Else
+				rsTimecardLines.fields("lmlIndirectLaborID").value = trim(controls("txtCLAYIndirectID").value)
+				rsTimecardLines.fields("lmlWorkcenterID").value = GetEmployeePayrollDef(rsTimecardLines.fields("lmlEmployeeID").value)
+		end select
+		
+		rsTimecardLines.MoveNext()
+	loop
+
+	rsTimecardLines.filter = nothing	
+	rsTimecardLines.MoveFirst()
+	
+	controls("grdTimecardLines").RefreshRS rsTimecardLines
+End Function
+
+Function CorrectDirectLabor()
+	'filter rsTimecardLines down to just direct lines
+	rsTimecardLines.filter = "lmlTimecardType = 1"
+
+	do while not rsTimecardLines.EOF 
+		rsTimecardLines.fields("lmlJobID").value = controls("txtCLAYJobID").value
+		rsTimecardLines.fields("lmlJobAssemblyID").value = controls("txtCLAYAssemblyID").value
+		rsTimecardLines.fields("lmlJobOperationID").value = controls("txtCLAYOperationID").value
+		rsTimecardLines.fields("lmlWorkcenterID").value = GetEmployeePayrollDef(rsTimecardLines.fields("lmlEmployeeID").value)
+		rsTimecardLines.fields("lmlProcessID").value = controls("txtCLAYProcessID").value
+		
+		rsTimecardLines.MoveNext()
+	loop
+			
+	rsTimecardLines.filter = nothing	
+	rsTimecardLines.MoveFirst()
+	
+End Function
+
+function GetEmployeePayrollDef (byVal EmployeeID)
+	PayrollDef = ""
+	set rs = createobject("adodb.recordset")
+			rs.Open " select lmrPayrollDefinitionID " & _
+							" from PayrollDefinitions " & _
+							" inner join EmployeePersonalData on lmdPayrollDefinitionID = lmrPayrollDefinitionID " & _
+							"	where lmdEmployeeID = " & App.Convert.StringToSql(EmployeeID), _
+							Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	if rs.fields("lmrPayrollDefinitionID").value = "GAHOU" then
+		GetEmployeePayrollDef = "GA"
+	else
+		GetEmployeePayrollDef = "PROD"
+	end if
+
+end function
+
+Function cmdExport_Click(sender, e)
+	if controls("chkLaborCorrected").value then
+		Set wshShell = CreateObject("WScript.Shell")
+		ExportDirectory = wshShell.ExpandEnvironmentStrings("%USERPROFILE%") & "\Desktop"
+		DateTimeForFilename = replace(replace(replace(app.Convert.DateTimeToSql(now()),"'","")," ","-"),":","")
+		FileExtension = ".xlsx"
+		TimecardFilename = ExportDirectory & "\Timecards-" & DateTimeForFilename & FileExtension
+		TimecardLineFilename = ExportDirectory & "\TimecardLines-" & DateTimeForFilename & FileExtension
+	
+		msgbox "Please choose a location and filename for the Timecard export. Be sure to choose to Export Field Headings!"
+		controls("grdTimecards").Export
+		msgbox "Exported " & rsTimecards.RecordCount & " timecards to location " & TimecardFilename
+		msgbox "Please choose a location and filename for the Timecard Line export. Be sure to choose to Export Field Headings!"
+		controls("grdTimecardLines").Export
+		msgbox "Exported " & rsTimecardLines.RecordCount & " timecards to location " & TimecardLineFilename
+		
+		set rsComplete = createobject("adodb.recordset")
+		do while not rsTimecards.EOF  
+
+			rsComplete.Open "select lmpTimecardID, ulmpExportedToCLAY from Timecards where lmpTimecardID = " & rsTimecards.fields("lmpTimecardID").value, _
+											Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+			rsComplete.fields("ulmpExportedToCLAY").value = true
+			rsComplete.UpdateBatch
+			rsComplete.Close
+
+			rsTimecards.MoveNext()
+		loop
+		
+		rsTimecards.ReQuery
+		controls("grdTimecards").RefreshRS rsTimecards
+		controls("cmdCorrectLabor").Enabled = false
+		controls("cmdExport").Enabled = false
+		controls("grdTimecards").Enabled = false
+		controls("grdTimecardLines").Enabled = false
+		msgbox "Done"
+		
+	else
+		msgbox "Please correct the labor before exporting."
+	end if	
+End Function
+
+Function cmdCorrectLabor_Click(sender, e)
+	if trim(controls("txtCLAYJobID").value) = "" then 
+		msgbox "Invalid JobID. Exiting without changes."
+		exit function
+	end if
+			
+	if trim(controls("txtCLAYIndirectID").value) = "" then 
+		msgbox "Invalid Indirect ID. Exiting without changes."
+		exit function
+	end if
+			
+	call CorrectDirectLabor
+	call CorrectIndirectLabor
+	controls("grdTimecardLines").RefreshRS rsTimecardLines
+	controls("chkLaborCorrected").value = true
+End Function
+		
