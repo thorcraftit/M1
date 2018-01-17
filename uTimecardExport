@@ -3,8 +3,6 @@ private rsTimecardLines
 
 function this_initialize (sender, e)
 	set rsTimecards = CreateObject("ADODB.Recordset")
-	controls("txtStartDate").value = "2017-12-17"
-	controls("txtEndDate").value = "2017-12-30"
 	
 	'set defaults
 	controls("txtCLAYIndirectID").value = "IND"
@@ -157,7 +155,7 @@ Function cmdExport_Click(sender, e)
 		msgbox "Exported " & rsTimecards.RecordCount & " timecards to location " & TimecardFilename
 		msgbox "Please choose a location and filename for the Timecard Line export. Be sure to choose to Export Field Headings!"
 		controls("grdTimecardLines").Export
-		msgbox "Exported " & rsTimecardLines.RecordCount & " timecards to location " & TimecardLineFilename
+		msgbox "Exported " & rsTimecardLines.RecordCount & " timecardlines to location " & TimecardLineFilename
 		
 		set rsComplete = createobject("adodb.recordset")
 		do while not rsTimecards.EOF  
