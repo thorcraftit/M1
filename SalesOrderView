@@ -1,3 +1,5 @@
+private rsOrderLineInfo
+
 Function chkBuilderCredit_ValueChanged(sender, e)
 	If controls("chkBuilderCredit").value = false Then
 		controls("txtBuilderCreditID").value = ""
@@ -95,17 +97,35 @@ Function M1DataControl_SaveDataCompleted(sender, e)
 		vbsSalesOrderTotals.UpdateSalesOrderCabinetTotal controls("txtOmpSalesOrderID").Value
 		vbsSalesOrderTotals.UpdateSalesOrderPaintTotal controls("txtOmpSalesOrderID").Value
 	end if
+		
+	rsOrderLineInfo.UpdateBatch()
 End Function
 
 Function this_Initialize(sender, e)
 	includescript "vbsSalesOrderTotals"
 	includescript "vbsThorcraftTools"
+	
 End Function
 
 Function cmdMapShippingAddress_Click(sender, e)
 	call vbsThorcraftTools.ShowLocationOnMap (controls("txtOmpShipOrganizationID").Value, controls("txtOmpShipLocationID").Value)
 End Function
-		
-		
-		
-		
+
+function GetOrderLineInfo(OrderID) 
+	set rs = createobject("adodb.recordset")
+	rs.Open "	select * from	salesorderlines where omlSalesOrderID =  " & app.convert.StringToSql(OrderID), Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	set GetOrderLineInfo = rs
+end function
+
+Function txtOmpSalesOrderID_ValueChanged(sender, e)
+	Set rsOrderLineInfo = GetOrderLineInfo(controls("txtOmpSalesOrderID").value)
+	controls("grdOrderLines").RefreshRS rsOrderLineInfo
+End Function
+
+Function grdOrderLines_CellChange(sender, e)
+	controls("M1DataControl").MarkAsChanged()
+End Function
+
+Function grdOrderLines_AfterSelectChange(sender, e)
+	controls("M1DataControl").MarkAsChanged()
+End Function
