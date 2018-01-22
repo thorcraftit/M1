@@ -64,17 +64,6 @@ sub MarkZeroOpsComplete()
 	
 end sub
 	
-Function chkJmpReleasedToFloor_UserChange(sender, e)
-	if controls("chkJmpReleasedToFloor").value = 0 then 
-		controls("uxujmpReleasedToFloorDateDateEditor").value = ""
-		controls("txtujmpReleasedByEmpId").value = ""
-	else
-		controls("uxujmpReleasedToFloorDateDateEditor").value = now()
-		controls("txtujmpReleasedByEmpId").value = App.Ax("Production").EmployeeID
-	end if
-	
-End Function
-
 sub MarkJunkMaterialsComplete () 
 	'dim rsJobMaterials
 	set rsJobMaterials = createobject("adodb.recordset")
@@ -94,4 +83,12 @@ sub MarkJunkMaterialsComplete ()
 	
 end sub
 	
-	
+
+function chkJmpReleasedToFloor_UserChange(sender, e)
+	if controls("chkJmpReleasedToFloor").value = 0 then 
+		controls("txtujmpReleasedByEmpId").value = ""
+	else
+		controls("txtujmpReleasedByEmpId").value = App.Ax("Production").EmployeeID
+	end if
+end function
+
