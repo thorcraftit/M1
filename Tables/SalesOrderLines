@@ -1,0 +1,70 @@
+Function SalesOrderLines_DeleteStarted(sender, e)
+	'Forms.MessageWindow "Checking for Time Card Lines and Deleting Jobs...", 5, nothing
+	
+	Set rsSalesOrderJobLinks = CreateObject("ADODB.RecordSet")
+	rsSalesOrderJobLinks.Open _
+		"	SELECT omjJobID, " & _
+		"	       (SELECT Count(*) " & _
+		"				  FROM   PartTransactions " & _
+		"	        WHERE  imtJobID = omjJobID) AS TransactionCount, " & _
+		"	       (SELECT Count(*) " & _
+		"	        FROM   TimeCardLines " & _
+		"	        WHERE  lmlJobID = omjJobID) AS TimecardLineCount, " & _
+		"	       ISNULL((SELECT Count(*) " & _
+		"	        FROM   PurchaseOrderLines " & _
+		"	        WHERE  pmlJobID = omjJobID),0) AS PurchaseOrderLineCount " & _
+		"	FROM   SalesOrderJobLinks " & _
+		"	WHERE  omjSalesOrderID = " & App.Convert.StringToSql(Fields("omlSalesOrderID").Value) & _
+		"	       AND omjSalesOrderLineID = " & App.Convert.NumberToSql(Fields("omlSalesOrderLineID").Value), _
+		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+
+	BadJobs = Array()
+	Do While Not rsSalesOrderJobLinks.EOF 
+		If cLng(rsSalesOrderJobLinks.Fields("TransactionCount").Value) > 0 OR _ 
+			 cLng(rsSalesOrderJobLinks.Fields("TimecardLineCount").Value) > 0 OR _ 
+			 cLng(rsSalesOrderJobLinks.Fields("PurchaseOrderLineCount").Value) > 0 Then
+			Redim Preserve BadJobs(uBound(BadJobs) + 1)
+			BadJobs(uBound(BadJobs)) = Trim(rsSalesOrderJobLinks.Fields("omjJobID").Value)
+		end if
+		rsSalesOrderJobLinks.MoveNext()
+	loop
+	
+	If uBound(BadJobs) >= 0 then 
+		SalesOrdersLines_DeleteStarted = "The following Jobs have TimecardLines, Part Transactions, or POs associated with them: " & Join(BadJobs, ", ")
+	Else
+		If Not (rsSalesOrderJobLinks.BOF AND rsSalesOrderJobLinks.EOF) Then
+			rsSalesOrderJobLinks.MoveFirst
+		End If 
+		
+		Do While Not rsSalesOrderJobLinks.EOF  
+			App.Ax("Job").DeleteJobAssembly e.SqlTransaction, rsSalesOrderJobLinks.fields("omjJobID").value, 0
+			connection.Execute _
+				"	DELETE Jobs " & _
+				"	WHERE  jmpJobID = " & App.Convert.StringToSql(rsSalesOrderJobLinks.fields("omjJobID").value)			
+			rsSalesOrderJobLinks.MoveNext()
+		loop
+	End If
+End Function
+
+Function uomlStatusID_ValueChanged(sender, e)
+	set rs = createobject("adodb.recordset"_
+	rs.open "	select * " & _
+					"	from uSalesOrderLineStatusDates	" & _
+					"	where uldSalesOrderID = " & App.Convert.StringToSQL(fields("omlSalesOrderID").value) & _
+					"		and uldSalesOrderLineID = " & App.Convert.StringToSQL(fields("omlSalesOrderLineID").value) & _
+					"		and uldStatusID = " & App.Convert.StringToSQL(fields("uomlStatusID").value), _
+					Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	if rs.EOF then 
+		rs.AddNew()
+	end if
+	
+	rs.fields("uldSalesOrderID").value = fields("omlSalesOrderID").value
+	rs.fields("uldSalesOrderLineID").value = fields("omlSalesOrderLineID").value
+	rs.fields("uldStatusID").value = fields("uomlStatusID").value
+	rs.fields("uldCreatedBy").value = App.UserID
+	rs.fields("uldCreatedDate").value = now()
+	
+	rs.UpdateBatch()
+					
+End Function
