@@ -47,7 +47,7 @@ Function SalesOrderLines_DeleteStarted(sender, e)
 End Function
 
 Function uomlStatusID_ValueChanged(sender, e)
-	set rs = createobject("adodb.recordset"_
+	set rs = createobject("adodb.recordset")
 	rs.open "	select * " & _
 					"	from uSalesOrderLineStatusDates	" & _
 					"	where uldSalesOrderID = " & App.Convert.StringToSQL(fields("omlSalesOrderID").value) & _
