@@ -1,0 +1,36 @@
+'----------M1 Code----------
+'includescript "vbsCabinetVisionImport"
+'The quote line customization (code in vbsCabinetVisionImport) is not in production.
+'
+'Function cmdCabinetVision_Click()	
+'	If Controls("M1DataControl").SaveRecordEx = 0 Then
+'			vbsCabinetVisionImport.QuoteID = Controls("txtqmlQuoteID").Value
+'			vbsCabinetVisionImport.QuoteLineID = Controls("txtqmlQuoteLineID").Value
+'			
+'			vbsCabinetVisionImport.OpenDatabases
+'			'vbsCabinetVisionImport.ImportUnitOfIssue
+'			'vbsCabinetVisionImport.ImportMaterials
+'			vbsCabinetVisionImport.ImportQuoteAssemblies
+'			vbsCabinetVisionImport.CloseDatabases
+'			
+'			Controls("M1DataControl").RefreshTree
+'			Controls("M1DataControl").ReloadCurrentData
+'	End If
+'End Function
+'Function M1DataControl_RecordSave()
+Function M1DataControl_SaveDataCompleted(sender, e)
+	'Disabled this line because it overwrites part pricing used by moldings.
+	'vbsUpdateRevisedPrice.UpdateRevisedPrices Controls("txtqmlQuoteID").Value, Controls("txtqmlQuoteLineID").Value
+	
+	'This is now handled by M1v9 "refreshMatrix" function
+	'vbsUpdateRevisedPrice.ForeRefreshTaxes Controls("txtqmlQuoteID").Value, Controls("txtqmlQuoteLineID").Value
+	this.RevertView	
+End Function
+
+Function this_initialize(sender, e)
+	includeScript "vbsUpdateRevisedPrice"
+end function
+
+Function M1DataControl_ActionMessage(sender, e)
+	Controls("M1DataControl").MarkAsChanged
+End Function
