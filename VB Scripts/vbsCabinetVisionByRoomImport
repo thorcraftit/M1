@@ -2230,34 +2230,16 @@ Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials,
 	FoundPart = False
 	QuoteMaterialWhereClause = ""
 	If Consolidated Then
-											
-																																								 
-																																																			
-																																														 
-			
-																																									
-																																											
-
-				
-																					
-														 
-														 
-																										
+																		
 '		if FilterByName then
-'			rsQuoteMaterials.Filter = "qmmPartID = " & App.Convert.StringToSql(PartID) & _
-'			                          " AND qmmPartRevisionID = " & App.Convert.StringToSql(PartRevisionID) & _
-'																" AND qmmPartShortDescription = " & App.Convert.StringToSql(ShortDescription)
-															 
-						 
-					 
+'			rsQuoteMaterials.Filter = "qmmPartID = '" & PartID & "'" & _
+'			                          " AND qmmPartRevisionID = '" & PartRevisionID & "'" & _
+'																" AND qmmPartShortDescription = '" & ShortDescription & "'" 
 '		else
-'				rsQuoteMaterials.Filter = "qmmPartID = " & App.Convert.StringToSql(PartID) & _
-'																	" AND qmmPartRevisionID = " & App.Convert.StringToSql(PartRevisionID)
-
-						 
-					 
+'				rsQuoteMaterials.Filter = "qmmPartID = '" & PartID & "'" & _
+'																	" AND qmmPartRevisionID = '" & PartRevisionID & "'" 
 '		end if
-		' Begin hack to replace rs.filters above
+	' Begin hack to replace rs.filters above
 		foundQuoteMaterial = FALSE
 		rsQuoteMaterials.MoveFirst
 		do while not found and not rsQuoteMaterials.EOF  
@@ -2650,4 +2632,3 @@ Private function DebugLog(sData,bMode)
 	rsDebugLog.UpdateBatch
 	rsDebugLog.Close
 End Function
-
