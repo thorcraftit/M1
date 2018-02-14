@@ -30,7 +30,7 @@ Public Sub Class_Initialize
 	Set MaterialsDBConnection = CreateObject("ADODB.Connection")
 	Set AccessoriesDBConnection = CreateObject("ADODB.Connection")
 	
-	BUILD_MODE = FALSE
+	BUILD_MODE = false
 	DEBUG_MODE = False
 	VERBOSE  = false
 	
@@ -240,8 +240,6 @@ End Function
 Private Function CreateUnitOfMeasure(ByRef rsuUnitOfIssue, CabinetVisionID, Description)
 	rsuUnitOfIssue.AddNew
 	App.BlankRecord rsuUnitOfIssue
-'	rsuUnitOfIssue.Fields("uciUnitOfIssueID").value = App.GetNextIDForTable("uUnitOfIssue")
-'	rsuUnitOfIssue.Fields("uciUnitOfIssueID").value = App.GenerateNextIDForTable("uUnitOfIssue")
 	rsuUnitOfIssue.Fields("uciUnitOfIssueID").value = App.Ax("LegacyFunctions").GetNextIDForTable("uUnitOfIssue")
 	rsuUnitOfIssue.Fields("uciCabinetVisionID").value = CabinetVisionID
 	rsuUnitOfIssue.Fields("uciDescription").value = LEFT(Description, 50)
@@ -304,12 +302,26 @@ Public Function ImportMaterials()
 	
 	Set rsCVProfiles = GetCVMoldingProfiles()		
 	Set rsCVSchedules = GetCVMoldingSchedules()
-	
+	nMoldingsUpdated = 0
+			
 	Do While Not rsCVProfiles.EOF
 		Do While not rsCVSchedules.EOF
-			if not MoldingExists(rsCVProfiles.fields("ID").value, rsCVSchedules.fields("ID").value) then
-				CreateMaterials rsuMaterials, rsCVProfiles.fields("ID").Value & rsCVSchedules.fields("ID").value, rsCVProfiles.fields("Name").Value & " " & rsCVSchedules.fields("Name").value, _
-												2, 7, rsCVProfiles.fields("ID").value, rsCVSchedules.fields("ID").value
+			if MoldingExists(rsCVProfiles.fields("ID").value, rsCVSchedules.fields("Material").value) then
+
+				UpdateMolding rsCVProfiles.fields("ID").Value, _
+											rsCVSchedules.fields("Material").value, _
+											rsCVProfiles.fields("Name").Value, _
+											rsCVSchedules.fields("Name").value
+				
+				nMoldingsUpdated = nMoldingsUpdated + 1
+												
+			else
+				CreateMaterials rsuMaterials, _
+												rsCVProfiles.fields("ID").Value & rsCVSchedules.fields("Material").value, _
+												rsCVProfiles.fields("Name").Value & " " & rsCVSchedules.fields("Name").value, _
+												2, 7, _
+												rsCVProfiles.fields("ID").value, _
+												rsCVSchedules.fields("ID").value
 			end if
 
 			rsCVSchedules.MoveNext
@@ -327,28 +339,61 @@ Public Function ImportMaterials()
 		ImportMaterials = 0
 	End If
 	
-	Forms.MessageWindow "Done Importing Materials. - " & rsuMaterials.RecordCount & " imported.", 5, Nothing
+	Forms.MessageWindow "Done Importing Materials. - " & rsuMaterials.RecordCount & " imported, " & _
+											nMoldingsUpdated & " updated.", 5, Nothing
+	set rsCVProfiles = nothing
+	set rsCVSchedules = nothing
+	set rsuUnitOfIssue = nothing
+	set rsuMaterials = nothing
+	set rsCVMaterials = nothing
 End Function
+				
+Private Function UpdateMolding (ProfileID, MaterialID, ProfileName, ScheduleName)
+
+	nCabinetVisionID = ProfileID & MaterialID
+	
+	sNewDescription = cstr (ProfileName & " " & ScheduleName)
+	
+	set rsMaterials = createobject("adodb.recordset")
+	rsMaterials.open "Select * from uMaterials where ucmCabinetVisionID = " & App.Convert.NumberToSQL(nCabinetVisionID), _
+										Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+		
+	rsMaterials.MoveFirst()
+	do while not rsMaterials.EOF
+		rsMaterials.fields("ucmDescription").value = sNewDescription
+		rsMaterials.fields("ucmProfileID").value = ProfileID
+		rsMaterials.fields("ucmMaterialScheduleID").value = MaterialID
+		rsMaterials.MoveNext()
+	loop
+	
+	rsMaterials.UpdateBatch()
+		
+	set rsMaterials = nothing
+End function
 		
 Private Function GetCVMoldingSchedules()
 	SET GetCVMoldingSchedules = MaterialsDBConnection.Execute(	"	SELECT * " & _
-																															"	FROM   [tbl Schedules] " & _
-																															"	WHERE  [ID] >= 0" & _
-																															"				AND [ClassID] = 22")
+																															"	FROM   [tbl Schedules]	" & _
+																															"	inner join (	" & _
+																															"	Select Schedule, Part, Material from [tbl Schedule Map]" & _
+																															"	) AS S on ([tbl Schedules].ID = S.Schedule and S.Part = 124)	" & _
+																															"	WHERE  [ID] >= 0 " & _
+																															"		 AND [ClassID] = 22 " & _ 
+																															"		 AND Name not like '%zOld%' ")
 End Function
 		
 Private Function GetCVMoldingProfiles()
 	SET GetCVMoldingProfiles = MaterialsDBConnection.Execute(	 "	SELECT * " & _
 																															"	FROM   [tbl Profiles] " & _
 																															"	WHERE  [ID] >= 0" & _
-																															"				AND [Type] not in (2,8) ")
+																															"		 AND [Type] not in (2,8,10) " & _
+																															"		 AND [Name] not like '%zOld%'")
 End Function
 		
-Private Function MoldingExists(ProfileID, ScheduleID)
+Private Function MoldingExists(ProfileID, MaterialID)
 	MoldingExists = Not Connection.Execute("	SELECT 1 " & _
 					                                "	FROM   uMaterials " & _
-						                              "	WHERE  ucmProfileID = " & App.Convert.NumberToSql(ProfileID) & _
-		                                      "	       AND ucmMaterialScheduleID = " & App.Convert.NumberToSql(ScheduleID)).EOF
+						                              "	WHERE  ucmCabinetVisionID = " & App.Convert.NumberToSql(ProfileID & MaterialID)).EOF
 End Function
 			
 Private Function GetMaterials()
@@ -2230,16 +2275,34 @@ Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials,
 	FoundPart = False
 	QuoteMaterialWhereClause = ""
 	If Consolidated Then
-																		
+											
+																																								 
+																																																			
+																																														 
+			
+																																									
+																																											
+
+				
+																					
+														 
+														 
+																										
 '		if FilterByName then
-'			rsQuoteMaterials.Filter = "qmmPartID = '" & PartID & "'" & _
-'			                          " AND qmmPartRevisionID = '" & PartRevisionID & "'" & _
-'																" AND qmmPartShortDescription = '" & ShortDescription & "'" 
+'			rsQuoteMaterials.Filter = "qmmPartID = " & App.Convert.StringToSql(PartID) & _
+'			                          " AND qmmPartRevisionID = " & App.Convert.StringToSql(PartRevisionID) & _
+'																" AND qmmPartShortDescription = " & App.Convert.StringToSql(ShortDescription)
+															 
+						 
+					 
 '		else
-'				rsQuoteMaterials.Filter = "qmmPartID = '" & PartID & "'" & _
-'																	" AND qmmPartRevisionID = '" & PartRevisionID & "'" 
+'				rsQuoteMaterials.Filter = "qmmPartID = " & App.Convert.StringToSql(PartID) & _
+'																	" AND qmmPartRevisionID = " & App.Convert.StringToSql(PartRevisionID)
+
+						 
+					 
 '		end if
-	' Begin hack to replace rs.filters above
+		' Begin hack to replace rs.filters above
 		foundQuoteMaterial = FALSE
 		rsQuoteMaterials.MoveFirst
 		do while not found and not rsQuoteMaterials.EOF  
