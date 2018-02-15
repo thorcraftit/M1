@@ -1,0 +1,44 @@
+Function cmdImport_Click(sender, e) 
+	vbsCabinetVisionByRoomImport.OpenDatabases
+	vbsCabinetVisionByRoomImport.ImportUnitOfIssue
+	vbsCabinetVisionByRoomImport.ImportMaterials
+	vbsCabinetVisionByRoomImport.CloseDatabases
+End Function
+
+Function uxucmPartIDTextEditor_UserChange(sender, e)
+	if trim(controls("uxucmPartIDTextEditor").value) <> "" then
+		setM1PartShortDescription trim(controls("uxucmPartIDTextEditor").value), trim(controls("uxucmPartRevisionIDTextEditor").value)
+	end if
+End Function
+
+Function uxucmPartRevisionIDTextEditor_UserChange(sender, e)
+	if trim(controls("txtucmPartID").value) <> "" then
+		setM1PartShortDescription trim(controls("uxucmPartIDTextEditor").value), trim(controls("uxucmPartRevisionIDTextEditor").value)
+	end if
+End Function
+
+function setM1PartShortDescription (PartID, PartRevisionID) 
+	M1PartShortDescription = ""
+	if PartID <> "" then	
+		M1PartShortDescription = Connection.Execute ( _
+																					"	SELECT 	imrShortDescription " & _
+																					"	FROM 		PartRevisions " & _		
+																					"	WHERE		imrPartID = " & App.Convert.StringToSql(PartID) & _
+																					"			 and imrPartRevisionID = " & App.Convert.StringToSql(PartRevisionID) _
+																				).Fields("imrShortDescription").value
+	end if
+	
+	controls("uxPartShortDescription").value = M1PartShortDescription
+
+end function
+
+Function this_Initialize(sender, e)
+	includescript "vbsCabinetVisionByRoomImport"
+
+End Function
+'
+Function M1DataControl_RecordChange(sender, e)
+	if trim(controls("uxucmPartIDTextEditor").value) <> "" then
+		setM1PartShortDescription trim(controls("uxucmPartIDTextEditor").value), trim(controls("uxucmPartRevisionIDTextEditor").value)
+	end if
+End Function
