@@ -30,7 +30,9 @@ Function SalesOrderLines_DeleteStarted(sender, e)
 	loop
 	
 	If uBound(BadJobs) >= 0 then 
-		SalesOrdersLines_DeleteStarted = "The following Jobs have TimecardLines, Part Transactions, or POs associated with them: " & Join(BadJobs, ", ")
+		MsgBox "The following Jobs have TimecardLines, Part Transactions, or POs associated with them: " & Join(BadJobs, ", ")
+		e.Cancel = true
+		Exit Function
 	Else
 		If Not (rsSalesOrderJobLinks.BOF AND rsSalesOrderJobLinks.EOF) Then
 			rsSalesOrderJobLinks.MoveFirst
