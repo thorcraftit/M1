@@ -270,14 +270,14 @@ Public Function ImportMaterials()
 	If Not DatabasesOpen Then 
 		Exit Function
 	End If
-	'asd
+	
 	Set rsuUnitOfIssue = GetUnitOfIssues()
 	Set rsuMaterials = GetMaterials()
 	Set rsCVMaterials = GetAllCVMaterials()
 			
 	Do While Not rsCVMaterials.EOF
 		If Not MaterialExists(rsCVMaterials.Fields("ID").Value) Then
-			rsuUnitOfIssue.Filter = "uciCabinetVisionID = " & App.Convert.NumberToSql(rsCVMaterials.Fields("UnitOfIssue").Value)
+			rsuUnitOfIssue.Filter = "uciCabinetVisionID = " & App.Convert.StringToLinq(rsCVMaterials.Fields("UnitOfIssue").Value)
 			If Not rsuUnitOfIssue.EOF Then
 				CreateMaterials rsuMaterials, rsCVMaterials.Fields("ID").Value, rsCVMaterials.Fields("Name").Value, _
 		                    rsuUnitOfIssue.Fields("uciUnitOfIssueID").Value, 1, 0, 0
@@ -732,32 +732,26 @@ End Function
 			
 Private Function ImportQuoteOperations(ByRef rsQuoteOperations, ByVal QuoteID, ByVal QuoteLineID, _
 	                                     ByVal QuoteAssemblyID, ByVal RoomID, ByVal CabinetID, ByVal ImportType)
-'qwe
+
 	app.ax("QuoteFunctions").GetMethod QuoteID, QuoteLineID, QuoteAssemblyID, "ROOM", "", true, false, true, true, true ',,,,,,,,,,))
 	
 	Set rsLabor = GetAssemblyOperations(RoomID, CabinetID, ImportType)
 	set rsQuoteOperations = GetQuoteAssemblyOperations (QuoteID, QuoteLineID, QuoteAssemblyID)
 	
 	do while not rslabor.EOF
-		'an rs.filter should go here
-		foundQuoteOperation = false
-		do while not rsQuoteOperations.EOF and not foundQuoteOperation
-			if cstr(rsQuoteOperations.fields("uqmoCabinetVisionID").value) = cstr(rsLabor.fields("Part ID").value) then
-				foundQuoteOperation = true
-				rsQuoteOperations.fields("qmoProductionStandard").value = cdbl(rsQuoteOperations.fields("qmoProductionStandard").value) _
-																																	+ cdbl(rsLabor.fields("ProductionStandard").value)
-				rsQuoteOperations.fields("uqmoImported").value = true
-			end if
 
-			rsQuoteOperations.movenext
-		loop
-
-		if rsQuoteOperations.EOF and not foundQuoteOperation then
-			AddErrorMessage "Operation for CV Labor ID " & Trim(rsLabor.Fields("Part ID").Value) & " not found."
-		end if
+		rsQuoteOperations.filter = "uqmoCabinetVisionID = " & App.Convert.StringToLinq(rsLabor.fields("Part ID").value)
 		
-		rsQuoteOperations.movefirst
+		if rsQuoteOperations.EOF then	
+			AddErrorMessage "Operation for CV Labor ID " & Trim(rsLabor.Fields("Part ID").Value) & " not found."
+		else
+			rsQuoteOperations.fields("qmoProductionStandard").value = cdbl(rsQuoteOperations.fields("qmoProductionStandard").value) _
+																																	+ cdbl(rsLabor.fields("ProductionStandard").value)
+			rsQuoteOperations.fields("uqmoImported").value = true
+		end if
 
+		rsQuoteOperations.filter = ""
+		
 		rsLabor.movenext
 	loop
 
@@ -848,7 +842,7 @@ End Function
 Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssue, ByVal QuoteID, _
 	                                    ByVal QuoteLineID, ByVal QuoteAssemblyID, ByRef QuoteMaterialID, _
 	                                    ByVal RoomID, ByVal CabinetID, ByVal ImportType)
-	'asdf
+	
 	Set rsCabinetMaterials = GetAssemblyMaterials(RoomID, CabinetID, ImportType)
 
 	Const MATERIAL_TYPE = 1
@@ -864,21 +858,7 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 		PartKeys = CabinetBuilderPartIDTranslation(rsCabinetMaterials.Fields("Material ID").Value, MATERIAL_TYPE)
 		
 		If Trim(PartKeys(0)) <> "" then
-'			rsUnitOfIssue.filter ("uciUnitOfIssueID = " & App.Convert.NumberToSql(PartKeys(2)))
-
-			' This is a hack
-			' but I could not for the life of me get the above rs.filter to work. 
-			' This appears to be an issue with M1v9?
-			found = FALSE
-			rsUnitOfIssue.MoveFirst
-			do while not found and not rsUnitOfIssue.EOF
-				if rsUnitOfIssue.fields("uciUnitOfIssueID").value = PartKeys(2) THEN
-					found = TRUE
-					exit do
-				end if
-				rsUnitOfIssue.MoveNext
-			Loop
-			' end hack
+			rsUnitOfIssue.filter = "uciUnitOfIssueID = " & App.Convert.StringToLinq(PartKeys(2))
 
 			Set rsCVMaterials = GetCVMaterials(rsCabinetMaterials.Fields("Material ID").Value)
 			Set rsCVSheet = GetCVSheet(rsCVMaterials.Fields("Sheet").Value)
@@ -2275,56 +2255,16 @@ Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials,
 	FoundPart = False
 	QuoteMaterialWhereClause = ""
 	If Consolidated Then
-											
-																																								 
-																																																			
-																																														 
-			
-																																									
-																																											
+														
+		if FilterByName then
+			rsQuoteMaterials.Filter = "qmmPartID = " & App.Convert.StringToLinq(PartID) & _
+			                          " AND qmmPartRevisionID = " & App.Convert.StringToLinq(PartRevisionID) & _
+																" AND qmmPartShortDescription = " & App.Convert.StringToLinq(ShortDescription)
+		else
+				rsQuoteMaterials.Filter = "qmmPartID = " & App.Convert.StringToLinq(PartID) & _
+																	" AND qmmPartRevisionID = " & App.Convert.StringToLinq(PartRevisionID)
+		end if
 
-				
-																					
-														 
-														 
-																										
-'		if FilterByName then
-'			rsQuoteMaterials.Filter = "qmmPartID = " & App.Convert.StringToSql(PartID) & _
-'			                          " AND qmmPartRevisionID = " & App.Convert.StringToSql(PartRevisionID) & _
-'																" AND qmmPartShortDescription = " & App.Convert.StringToSql(ShortDescription)
-															 
-						 
-					 
-'		else
-'				rsQuoteMaterials.Filter = "qmmPartID = " & App.Convert.StringToSql(PartID) & _
-'																	" AND qmmPartRevisionID = " & App.Convert.StringToSql(PartRevisionID)
-
-						 
-					 
-'		end if
-		' Begin hack to replace rs.filters above
-		foundQuoteMaterial = FALSE
-		rsQuoteMaterials.MoveFirst
-		do while not found and not rsQuoteMaterials.EOF  
-			if FilterByName then
-				if rsQuoteMaterials.fields("qmmPartID").value = PartID _
-					 	AND rsQuoteMaterials.fields("qmmPartRevisionID").value = PartRevisionID _
-					 	AND rsQuoteMaterials.fields("qmmPartShortDescription").value = ShortDescription then
-					foundQuoteMaterial = true
-					exit do
-				end if
-			else
-				if rsQuoteMaterials.fields("qmmPartID").value = PartID _
-					 	AND rsQuoteMaterials.fields("qmmPartRevisionID").value = PartRevisionID then
-					foundQuoteMaterial = true
-					exit do
-				end if
-			end if
-			rsQuoteMaterials.MoveNext	
-		loop
-		' end hack
-		
-		'asdf
 		Do While Not rsQuoteMaterials.EOF 
 			If cLng(rsQuoteMaterials.Fields("qmmQuoteAssemblyID").Value) = cLng(QuoteAssemblyID) Then
 				rsQuoteMaterials.Fields("qmmQuantityPerAssembly").Value = cDbl(rsQuoteMaterials.Fields("qmmQuantityPerAssembly").Value) + _
@@ -2334,7 +2274,7 @@ Private Function CreateQuoteMaterialsWithQuantityFormula(ByRef rsQuoteMaterials,
 			End IF
 			rsQuoteMaterials.MoveNext
 		Loop
-		'rsQuoteMaterials.Filter = ""
+		rsQuoteMaterials.Filter = ""
 		rsQuoteMaterials.MoveFirst						
 	End If
 
