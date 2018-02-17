@@ -386,7 +386,7 @@ Private Function GetCVMoldingProfiles()
 	SET GetCVMoldingProfiles = MaterialsDBConnection.Execute(	 "	SELECT * " & _
 																															"	FROM   [tbl Profiles] " & _
 																															"	WHERE  [ID] >= 0" & _
-																															"		 AND [Type] not in (2,8,10) " & _
+																															"		 AND [Type] not in (2,10) " & _
 																															"		 AND [Name] not like '%zOld%'")
 End Function
 		
