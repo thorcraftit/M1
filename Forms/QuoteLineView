@@ -24,7 +24,7 @@ Function M1DataControl_SaveDataCompleted(sender, e)
 	
 	'This is now handled by M1v9 "refreshMatrix" function
 	'vbsUpdateRevisedPrice.ForeRefreshTaxes Controls("txtqmlQuoteID").Value, Controls("txtqmlQuoteLineID").Value
-	this.RevertView	
+	'this.RevertView	
 End Function
 
 Function this_initialize(sender, e)
@@ -33,4 +33,90 @@ end function
 
 Function M1DataControl_ActionMessage(sender, e)
 	Controls("M1DataControl").MarkAsChanged
+end function
+	
+	
+Function cmdCalculateDiscount_Click(sender, e)
+	
+	'check to make sure that quote line part is in the discount part class
+	set rsQuotelinePart = createobject("adodb.recordset")
+	rsQuotelinePart.open "select * from Parts where impPartID = " & App.convert.StringToSql(trim(controls("txtQmlPartID").value)), _
+												Connection,adOpenStatic,adLockReadOnly,adCmdText
+	if rsQuotelinePart.EOF then 
+		MsgBox "Part not found in inventory. No discount calculated."
+		exit function
+	end if
+			
+	if rsQuotelinePart.fields("impPartClassID").value <> "DISC" then
+		MsgBox "You must use a Discount part to calculate a discount. No discount calculated."
+		exit function
+	end if
+	
+	'Get the parent quote's information so we can calculate a discount rate.
+	set rsParentQuote = createobject("adodb.recordset")
+	rsParentQuote.open "select * from Quotes where qmpQuoteID = " & App.convert.StringToSql(trim(controls("txtqmlQuoteID").value)), _
+										 Connection,adOpenStatic,adLockReadOnly,adCmdText
+	
+	nDiscountRate = App.Ax("PartFunctions").GetSellingPrice (trim(controls("txtQmlPartID").value), "", _
+										rsParentQuote.fields("qmpCustomerOrganizationID").value , _
+										rsParentQuote.fields("qmpQuoteLocationID").value, 1)
+	
+	set rsQuoteTotal = createobject("adodb.recordset")
+	rsQuoteTotal.open _
+						"select	sum (qmqQuoteQuantity*qmqRevisedUnitPriceBase) as QuoteTotal " & _
+						"from	QuoteLines " & _
+						"LEFT JOIN	Parts " & _
+						"			on qmlpartid = impPartID " & _
+						"INNER JOIN	QuoteQuantities  " & _
+						"			on	qmlQuoteID = qmqQuoteID " & _
+						"				and qmlQuoteLineID = qmqQuoteLineID " & _
+						"where	impPartClassID not in ('DISC','INSTA','DELIV') " & _
+						"	and qmlQuoteID = " & App.convert.StringToSql(trim(controls("txtqmlQuoteID").value)), _
+						Connection,adOpenStatic,adLockReadOnly,adCmdText
+	
+	if rsQuoteTotal.EOF then 
+		nQuoteTotal = 0
+	else
+		nQuoteTotal = rsQuoteTotal.fields("QuoteTotal").value
+	end if
+			
+	nTotalDiscount = cdbl(nDiscountRate) * cdbl(nQuoteTotal)
+		
+	set rsQuoteQuantity = createobject("adodb.recordset")
+	rsQuoteQuantity.open "select * from QuoteQuantities where qmqQuoteID = " & App.convert.StringToSql(trim(controls("txtqmlQuoteID").value)) & " AND qmqQuoteLineID = " & App.convert.StringToSql(trim(controls("txtqmlQuoteLineID").value)), _
+									Connection,adOpenStatic,adLockReadOnly,adCmdText
+	
+	if rsQuoteQuantity.EOF then 
+		MsgBox "No Quote Quantity found. No discount calculated."
+		exit function
+			
+	end if	
+			
+	rsQuoteQuantity.fields("qmqFullRevisedUnitPriceBase").value = 0
+	rsQuoteQuantity.fields("qmqFullRevisedUnitPriceForeign").value = 0
+	rsQuoteQuantity.fields("qmqUnitDiscountBase").value = nTotalDiscount
+	rsQuoteQuantity.fields("qmqRevisedUnitPriceBase").value = -1 * nTotalDiscount
+	rsQuoteQuantity.fields("qmqRevisedUnitPriceForeign").value = rsQuoteQuantity.fields("qmqRevisedUnitPriceBase").value
+	rsQuoteQuantity.fields("qmqDiscountPercent").value = 100
+		
+	rsQuoteQuantity.UpdateBatch()
+			
+	sWhere =  "qmlQuoteID = " & App.convert.StringToSql(trim(controls("txtqmlQuoteID").value)) & _
+						" AND qmlQuoteLineID = " & App.convert.StringToSql(trim(controls("txtqmlQuoteLineID").value))
+	
+	set rsQuoteLine = createobject("adodb.recordset")
+	rsQuoteline.open " select * from QuoteLines where " & sWhere, _
+							Connection,adOpenStatic,adLockReadOnly,adCmdText
+			
+	do while not rsQuoteLine.EOF 
+		rsQuoteLine.fields("qmlMatrixCalculated").value = 0
+		rsquoteline.MoveNext()
+	loop
+		
+	rsQuoteLine.UpdateBatch()	
+			
+	App.Ax("Quote").RefreshMatrix(sWhere)
+	
+	Controls("M1DataControl").MarkAsChanged
+			
 End Function
