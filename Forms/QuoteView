@@ -17,7 +17,8 @@ Function cmdImportRooms_Click(sender, e)
 	If (Trim(Controls("txtQmpProjectID").Value) <> "" AND Trim(Controls("txtProjectAreaID").Value) <> "") _
 		Or (Trim(Controls("txtQmpProjectID").Value) = "" AND Trim(Controls("txtProjectAreaID").Value) = "") Then
 		If this.SaveView = 0 Then
-
+			
+			vbsCabinetVisionByRoomImport.CloseDatabases
 			vbsCabinetVisionByRoomImport.OpenDatabases
 			
 			if vbsCabinetVisionByRoomImport.isLaborEnabled() then
@@ -119,4 +120,92 @@ function UpdateProjectOnQuoteLines(ByVal QuoteID, ByVal ProjectID)
 
 end function 
 		
+Function cmdCloseDatabases_Click(sender, e)
+	vbsCabinetVisionByRoomImport.CloseDatabases
+End Function
+		
+
+Function cmdUpdateLead_Click(sender, e)
+	'check if LeadID in txtuqmpLeadID exists. If not, error and exit
+	set rsLeads = createobject("adodb.recordset")
+	rsLeads.open "select * from Leads where lopLeadID = " & App.Convert.StringToSql(trim(controls("txtuqmpLeadID").value)), _
+							 Connection,adOpenStatic,adLockReadOnly,adCmdText	
+	if rsLeads.EOF then 
+		msgbox "No Lead found for ID " & controls("txtuqmpLeadID").value & ". Please select a lead."
+		Exit function
+	end if
+			
+	'check for PROJECTEDSALES lead line. Error/exit if it doesn't exist.
+	set rsLeadLines = createobject("adodb.recordset")
+	rsLeadLines.open "select top 1 * from LeadLines where lolPartid = 'PROJECTEDSALES' and lolLeadID = " & App.Convert.StringToSql(trim(controls("txtuqmpLeadID").value)), _
+							 Connection,adOpenStatic,adLockReadOnly,adCmdText
+	if rsLeadLines.EOF then 
+		msgbox "Lead Line not found for lead " & controls("txtuqmpLeadID").value & ". Please add a PROJECTEDSALES lead line. Exiting. No changes made."
+		Exit function
+	end if
+	
+	'if lead exists, calculate quote total.
+	set rsQuoteTotal = createobject("adodb.recordset")
+	rsQuoteTotal.open _
+						"select	sum (qmqQuoteQuantity*qmqRevisedUnitPriceBase) as QuoteTotal " & _
+						"from	QuoteLines " & _
+						"LEFT JOIN	Parts " & _
+						"			on qmlpartid = impPartID " & _
+						"INNER JOIN	QuoteQuantities  " & _
+						"			on	qmlQuoteID = qmqQuoteID " & _
+						"				and qmlQuoteLineID = qmqQuoteLineID " & _
+						"where	impPartClassID not in ('DISC','INSTA','DELIV') " & _
+						"	and qmlQuoteID = " & App.convert.StringToSql(trim(controls("txtQmpQuoteID").value)), _
+						Connection,adOpenStatic,adLockReadOnly,adCmdText
+	
+	if rsQuoteTotal.EOF then 
+		msgbox "No quote total. Exiting. No changes made."
+		exit function
+	else
+		QuoteTotal = cdbl(rsQuoteTotal.fields("QuoteTotal").value)
+	end if
+			
+	' Quote discount total
+	set rsDiscountTotal = createobject("adodb.recordset")
+	rsDiscountTotal.open _
+						"select	sum (qmqQuoteQuantity*qmqRevisedUnitPriceBase) as DiscountTotal " & _
+						"from	QuoteLines " & _
+						"LEFT JOIN	Parts " & _
+						"			on qmlpartid = impPartID " & _
+						"INNER JOIN	QuoteQuantities  " & _
+						"			on	qmlQuoteID = qmqQuoteID " & _
+						"				and qmlQuoteLineID = qmqQuoteLineID " & _
+						"where	impPartClassID = 'DISC' " & _
+						"	and qmlQuoteID = " & App.convert.StringToSql(trim(controls("txtQmpQuoteID").value)), _
+						Connection,adOpenStatic,adLockReadOnly,adCmdText
+	
+	if rsDiscountTotal.EOF then 
+		DiscountTotal = 0 
+	else
+		DiscountTotal = cdbl(rsDiscountTotal.fields("DiscountTotal").value) * cdbl(-1)
+	end if
+			
+	'Confirmation popup
+	if msgbox 	("Updating Lead " & controls("txtuqmpLeadID").value & vbnewline & _
+							"Current Lead Total: " & rsLeadLines.fields("lolUnitSalePriceBase").value & _
+							vbnewline & vbnewline & _
+							"Continuing will update the lead with the current quote total $" & QuoteTotal & "." & _
+							vbnewline & vbnewline & _
+							"Continue?", _
+				vbyesno + vbquestion) = vbNo then
+		msgbox "Lead not updated."
+		exit function
+	end if
+
+	'save the new total to the lead.				
+	rsLeadLines.fields("lolQuantity").value = cdbl(1)
+	rsLeadLines.fields("lolUnitSalePriceBase").value = QuoteTotal
+	rsLeadLines.fields("lolDiscountAmount").value = DiscountTotal
+	rsLeadLines.fields("lolDiscountPercent").value = DiscountTotal/QuoteTotal
+	rsLeadLines.fields("lolGrossAmount").value = QuoteTotal
+	rsLeadLines.fields("lolRevenueForecast").value = QuoteTotal - DiscountTotal
+	
+	rsLeadLines.UpdateBatch()			
+
+End Function
 		
