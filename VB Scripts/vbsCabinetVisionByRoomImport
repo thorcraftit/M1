@@ -2324,7 +2324,7 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
   rsPartRevisions.Open _
     "  SELECT imrInventoryUnitOfMeasure, imrSupplierOrganizationID, imrPurchaseLocationID, " & _
     "         imrLeadTime, imrDocuments, imrShortDescription, imrLongDescriptionRTF, " & _
-		"	       imrLongDescriptionText, uimrWorkcenterID, " & _
+		"	       imrLongDescriptionText, uimrWorkcenterID, uimrBackflush," & _
     "         imrAverageLaborCost + imrAverageOverheadCost + imrAverageMaterialCost + " & _
     "            imrAverageSubcontractCost + imrAverageDutyCost + imrAverageFreightCost + " & _
     "            imrAverageMiscCost As AvgCost, " & _
@@ -2361,8 +2361,7 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
 '			 rsQuoteMaterials.Fields("qmmRelatedQuoteOperationID").value <> 0 Then
 		If Not App.Ax("LotNumbers").IsLotTracked(rsQuoteMaterials.Fields("qmmPartID").value) AND _
 					 rsQuoteMaterials.Fields("qmmRelatedQuoteOperationID").value <> 0 Then
-		
-			rsQuoteMaterials.Fields("qmmBackflush").value = True
+			rsQuoteMaterials.Fields("qmmBackflush").value = rsPartRevisions.Fields("uimrBackflush").Value
 		End If
 		
 		If cBool(UseDefaultValue) Then
@@ -2378,10 +2377,7 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
 	    End Select
 		Else
   		rsQuoteMaterials.Fields("qmmEstimatedUnitCost").Value = DefaultPrice
-			' The below line must stay commented out. Enabling the line causes an error when using
-			' the purchasing wizard. "The purchase quantity is less than the required quantity."
-			' Evaluate enabling the line once we move to v9
-			 rsQuoteMaterials.Fields("qmmCostOverride").Value = True
+			rsQuoteMaterials.Fields("qmmCostOverride").Value = True
 		End If
 		
     App.Ax("PartFunctions").GetDefaultWarehouseAndBin rsQuoteMaterials.Fields("qmmPartID").Value, _
