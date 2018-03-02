@@ -90,7 +90,7 @@ Private Sub AddErrorMessage(Description)
 	ErrorMessages(uBound(ErrorMessages)) = Description
 End Sub
 
-Private Sub Class_Terminate() 
+Private Sub Class_Terminate()
 	CloseDatabases
 End Sub 
 
@@ -346,6 +346,8 @@ Public Function ImportMaterials()
 	set rsuUnitOfIssue = nothing
 	set rsuMaterials = nothing
 	set rsCVMaterials = nothing
+	
+	call EraseArray (ErrorMessages)
 End Function
 				
 Private Function UpdateMolding (ProfileID, MaterialID, ProfileName, ScheduleName)
@@ -509,9 +511,20 @@ Public Function CreateProjectQuoteLines(QuoteID, ProjectID, ProjectAreaID, Impor
 		Msgbox "Quote " & trim(controls("txtQmpQuoteID").value) & vbnewline & _
 					 "Parts not found:" & vbnewline & vbnewline & _
 					  Join(ErrorMessages, vbNewLine), vbInformation + vbOKOnly, "Import Errors"         
+		call EraseArray (ErrorMessages)
 	End If
 	CreateProjectQuoteLines = QuoteLines
 End Function
+		
+Sub EraseArray(ByRef arr)
+	 For i = 0 To UBound(arr)
+      If IsObject(arr(i)) Then
+        Set arr(i) = Nothing
+      Else
+        arr(i) = Empty
+      End If
+    Next
+End Sub
 		
 Private Function CreateProjectAreaAssembly(ProjectID, ProjectAreaID)
 	If Trim(ProjectID) <> "" Then
@@ -660,7 +673,8 @@ End Function
 		
 Private Function ImportCabinets(ByVal QuoteID, ByVal QuoteLineID, ByRef QuoteAssemblyID, ByVal RoomID, ByVal ImportType)
 	Const CABINET_TYPE = 8
-	Set rsCabinets = GetCabinets(RoomID)
+	
+	set rsCabinets = GetCabinets(RoomID)
 	
 	Set rsQuoteAssemblies = GetQuoteAssemblies()
 	Set rsQuoteOperations = GetQuoteOperations()
@@ -842,7 +856,7 @@ End Function
 Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssue, ByVal QuoteID, _
 	                                    ByVal QuoteLineID, ByVal QuoteAssemblyID, ByRef QuoteMaterialID, _
 	                                    ByVal RoomID, ByVal CabinetID, ByVal ImportType)
-	
+
 	Set rsCabinetMaterials = GetAssemblyMaterials(RoomID, CabinetID, ImportType)
 
 	Const MATERIAL_TYPE = 1
@@ -886,12 +900,19 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 				                                         True, 0, True, FilterByName) Then
 				QuoteMaterialID = QuoteMaterialID + 1
 			End If
-			
+			'asdf
 		Else
 			set CVMaterial = GetCVMaterials(rsCabinetMaterials.Fields("Material ID").Value)	
-			AddErrorMessage trim(CVMaterial.fields("Name").value) & ", " & _
-												GetRoomNameFromCabinetID (CabinetID) & ", Cab #" & _
-												CabinetID & ", ID " & trim(CVMaterial.fields("ID").value) 
+			if CabinetID = 0 then
+					AddErrorMessage trim(CVMaterial.fields("Name").value) & ", " & _
+						"Room: " & GetRoomNameFromID(RoomID) & _
+						", ID " & trim(CVMaterial.fields("ID").value)
+			else
+					AddErrorMessage trim(CVMaterial.fields("Name").value) & ", " & _
+														GetRoomNameFromCabinetID (CabinetID) & ", Cab #" & _
+														CabinetID & ", ID " & trim(CVMaterial.fields("ID").value) 
+			end if
+
 		End If
 		
 		rsCabinetMaterials.MoveNext
