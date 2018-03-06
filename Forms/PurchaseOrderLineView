@@ -1,0 +1,29 @@
+Function txtPmlPartID_ValueChanged(sender, e)
+	
+	Dim rsPartOrgRef,rsPartSupplier
+
+	Set rsPartSupplier = CreateObject("ADODB.Recordset")
+	Set rsPartOrgRef = CreateObject("ADODB.Recordset")
+
+	rsPartSupplier.Open "	select pmpSupplierOrganizationID " & _
+											"	from PurchaseOrders " & _
+											"	where pmpPurchaseOrderID = " & App.Convert.StringToSql(Trim(Controls("txtPmlPurchaseOrderID").Value)), _
+											Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	rsPartOrgRef.Open "	select * " & _
+										"	from PartOrgReferences " & _ 
+										"	where imzPartID = " & App.Convert.StringToSql(Trim(Controls("txtPmlPartID").Value)) & _
+										" 	 and imzPartRevisionID = " & App.Convert.StringToSql(Trim(Controls("txtPmlPartRevisionID").Value)) & _
+										"		and imzOrganizationID = " & App.Convert.StringToSql(rsPartSupplier.fields("pmpSupplierOrganizationID").value), _
+										Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+		If rsPartOrgRef.EOF then
+			controls("uxupmlOrgPartShortDescriptionTextEditor").value = ""
+		else
+			controls("uxupmlOrgPartShortDescriptionTextEditor").value = rsPartOrgRef.fields("imzOrgPartShortDescription").value
+		end if
+
+	rsPartOrgRef.close
+	rsPartSupplier.close
+
+End Function
