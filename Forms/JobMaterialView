@@ -1,0 +1,39 @@
+'Function txtJmmRelatedJobOperationID_Change()
+Function txtJmmRelatedJobOperationID_ValueChanged(sender, e)
+	'If isnull(controls("txtJmmRelatedJobOperationID").value) or controls("txtJmmRelatedJobOperationID").Value="" then
+'	If controls("chkJmmBackflush").value = 0 Then
+'		controls("chkJmmBackflush").value = 1
+'		controls("txtUqmpSecondPaymentAmount").value = 0
+'		controls("txtUqmpPaymentDeliveryAmount").value = 0		
+'	End If	
+End Function
+
+
+Function txtJmmPartRevisionID_ValueChanged(sender, e)
+	if trim(controls("txtJmmPartID").value) = "" then 
+		exit function
+	else
+		controls("uxujmmShowOnTravelerCheckBox").value = connection.execute _
+			( "	select uimrShowOnTraveler " & _
+				"	from PartRevisions " & _
+				"	where imrPartID = " & app.convert.StringToSql(trim(controls("txtJmmPartID").value)) & _
+				"		and imrPartRevisionID = " & app.convert.StringToSql(trim(controls("txtJmmPartRevisionID").value)) _
+			).fields("uimrShowOnTraveler").value
+						
+	end if
+End Function
+
+
+Function txtJmmPartID_ValueChanged(sender, e)
+	if trim(controls("txtJmmPartID").value) = "" then 
+		exit function
+	else
+		controls("uxujmmShowOnTravelerCheckBox").value = connection.execute _
+			( "	select uimrShowOnTraveler " & _
+				"	from PartRevisions " & _
+				"	where imrPartID = " & app.convert.StringToSql(trim(controls("txtJmmPartID").value)) & _
+				"		and imrPartRevisionID = " & app.convert.StringToSql(trim(controls("txtJmmPartRevisionID").value)) _
+			).fields("uimrShowOnTraveler").value
+						
+	end if
+End Function
