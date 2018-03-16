@@ -32,4 +32,50 @@ Function UpdateSupplierName(ByVal PurchaseOrderID, ByVal OrganizationID, ByVal L
 
 	rsOrganization.Close
 	this.OnDataChanged(3)
+End Function
+		
+Function txtPmpDueDate_UserChange(sender, e)
+	if msgbox ( "Update PO lines with this due date? All PO line due dates will be set to " & _
+							controls("txtPmpDueDate").value & ". Continue?", vbyesno + vbquestion _
+						) = vbno then 
+		msgbox "PO lines not updated."
+		exit function
+	end if
+			
+	set rsPOLines = createobject("adodb.recordset")
+	rsPOLines.open "select * from PurchaseOrderLines where pmlPurchaseOrderID = " & app.Convert.StringToSql(trim(controls("txtPmpPurchaseOrderID").value)), _
+									Connection,adOpenStatic,adLockReadOnly,adCmdText
+	
+	if not rsPOLines.EOF then
+		do while not rsPOLines.EOF
+			
+			rsPOLines.fields("pmlDueDate").value = controls("txtPmpDueDate").Value
+
+			if rsPOLines.fields("pmlPurchaseType").value = 1 then
+				' Job purchase
+				set rsJobMaterials = createobject("adodb.recordset")
+				rsJobMaterials.open " select * " & _
+														"	from JobMaterials " & _
+														"	where jmmJobID = " & app.convert.StringToSql(trim(rsPOLines.fields("pmlJobID").value)) & _
+														"		AND jmmJobAssemblyID = " & app.convert.StringToSql(trim(rsPOLines.fields("pmlJobAssemblyID").value)) & _
+														"		AND jmmJobMaterialID = " & app.convert.StringToSql(trim(rsPOLines.fields("pmlJobMaterialID").value)), _
+														Connection,adOpenStatic,adLockReadOnly,adCmdText
+				
+				if not rsJobMaterials.EOF then
+					rsJobMaterials.fields("jmmDueInDate").value = controls("txtPmpDueDate").value
+					rsJobMaterials.updatebatch()
+					set rsJobMaterials = nothing
+				end if
+				
+			end if
+			
+			rsPOLines.MoveNext
+		loop
+		
+		rsPOLines.movefirst()
+		rsPOLines.updatebatch()
+		
+		set rsPOLines = nothing
+				
+	end if
 end function
