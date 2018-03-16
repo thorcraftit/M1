@@ -2345,7 +2345,7 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
   rsPartRevisions.Open _
     "  SELECT imrInventoryUnitOfMeasure, imrSupplierOrganizationID, imrPurchaseLocationID, " & _
     "         imrLeadTime, imrDocuments, imrShortDescription, imrLongDescriptionRTF, " & _
-		"	       imrLongDescriptionText, uimrWorkcenterID, uimrBackflush," & _
+		"	       imrLongDescriptionText, uimrWorkcenterID, uimrBackflush,uimrShowOnTraveler," & _
     "         imrAverageLaborCost + imrAverageOverheadCost + imrAverageMaterialCost + " & _
     "            imrAverageSubcontractCost + imrAverageDutyCost + imrAverageFreightCost + " & _
     "            imrAverageMiscCost As AvgCost, " & _
@@ -2377,6 +2377,7 @@ Private Function CreateQuoteMaterials(ByRef rsQuoteMaterials, ByVal QuoteID, ByV
 																																									QuoteLineID, _
 																																									QuoteAssemblyID, _
 																																									rsPartRevisions.Fields("uimrWorkcenterID").Value)
+		rsQuoteMaterials.Fields("uqmmShowOnTraveler").Value = rsPartRevisions.Fields("uimrShowOnTraveler").Value
 '		If Not (App.Ax("LotNumbers").IsLotTracked(rsQuoteMaterials.Fields("qmmPartID").value) Or _
 '			      App.Ax("PartFunctions").IsSerialLotTracked(rsQuoteMaterials.Fields("qmmPartID").value)) AND _
 '			 rsQuoteMaterials.Fields("qmmRelatedQuoteOperationID").value <> 0 Then
