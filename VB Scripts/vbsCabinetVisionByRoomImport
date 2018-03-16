@@ -900,7 +900,7 @@ Private Function ImportMaterialsTable(ByRef rsQuoteMaterials, ByRef rsUnitOfIssu
 				                                         True, 0, True, FilterByName) Then
 				QuoteMaterialID = QuoteMaterialID + 1
 			End If
-			'asdf
+
 		Else
 			set CVMaterial = GetCVMaterials(rsCabinetMaterials.Fields("Material ID").Value)	
 			if CabinetID = 0 then
@@ -1963,6 +1963,7 @@ Private Function CreateQuoteAssemblies(ByRef rsQuoteAssemblies, ByVal QuoteID, B
 	                                     ByVal QuoteAssemblyID, ByVal PartID, ByVal PartRevisionID, _
 	                                     ByVal ShortDescription, ByVal LongDescription, ByVal QuantityPerAssembly, _
 	                                     ByVal RoomNumber, ByVal RoomName)
+	'asdf
   rsQuoteAssemblies.AddNew
 	App.BlankRecord rsQuoteAssemblies
   rsQuoteAssemblies.Fields("qmaQuoteID").value = LEFT(QuoteID, 10)
@@ -1975,11 +1976,12 @@ Private Function CreateQuoteAssemblies(ByRef rsQuoteAssemblies, ByVal QuoteID, B
   rsQuoteAssemblies.Fields("qmaLevel").value = 2
   rsQuoteAssemblies.Fields("qmaPartID").value = LEFT(PartID, 30)
   rsQuoteAssemblies.Fields("qmaPartRevisionID").value = LEFT(PartRevisionID, 15)
+	
   If Trim(rsQuoteAssemblies.Fields("qmaPartID").Value) <> "" Then
     Set rsPartRevisions = CreateObject("ADODB.Recordset")
     rsPartRevisions.Open _
       "  SELECT imrInventoryUnitOfMeasure, imrDocuments, imrShortDescription, " & _
-			"	       imrLongDescriptionRTF, imrLongDescriptionText " & _
+			"	       imrLongDescriptionRTF, imrLongDescriptionText, uimrWorkCenterID " & _
       "  FROM   PartRevisions " & _
       "  WHERE  imrPartID = " & App.Convert.StringToSql(rsQuoteAssemblies.Fields("qmaPartID").Value) & _
       "         AND imrPartRevisionID = " & App.Convert.StringToSql(rsQuoteAssemblies.Fields("qmaPartRevisionID").Value), _
@@ -1991,6 +1993,16 @@ Private Function CreateQuoteAssemblies(ByRef rsQuoteAssemblies, ByVal QuoteID, B
 	  	rsQuoteAssemblies.Fields("qmaPartShortDescription").value = rsPartRevisions.Fields("imrShortDescription").Value
 			rsQuoteAssemblies.Fields("qmaPartLongDescriptionRTF").value = rsPartRevisions.Fields("imrLongDescriptionRTF").Value
 		  rsQuoteAssemblies.Fields("qmaPartLongDescriptionText").value = rsPartRevisions.Fields("imrLongDescriptionText").Value
+			
+			OverlapOperationID = GetWorkcenterID (QuoteID, QuoteLineID, 0, rsPartRevisions.Fields("uimrWorkCenterID").Value)
+			'GetWorkcenterID(QuoteID, QuoteLineID, QuoteAssemblyID, rsPartRevisions.Fields("uimrWorkcenterID").Value)
+			if not (trim(OverlapOperationID) = "") then
+				rsQuoteAssemblies.Fields("qmaOverlapOperationID").value = OverlapOperationID
+				rsQuoteAssemblies.Fields("qmaOverlapType").value = 1
+				rsQuoteAssemblies.Fields("qmaOverlapSourceLink").value = 4
+				rsQuoteAssemblies.Fields("qmaOverlapDestinationLink").value = 5
+			end if
+			
     End If
     
     rsPartRevisions.Close
