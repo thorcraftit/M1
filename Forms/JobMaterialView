@@ -9,7 +9,7 @@ Function txtJmmRelatedJobOperationID_ValueChanged(sender, e)
 End Function
 
 
-Function txtJmmPartRevisionID_ValueChanged(sender, e)
+Function txtJmmPartRevisionID_UserChange(sender, e)
 	if trim(controls("txtJmmPartID").value) = "" then 
 		exit function
 	else
@@ -24,7 +24,7 @@ Function txtJmmPartRevisionID_ValueChanged(sender, e)
 End Function
 
 
-Function txtJmmPartID_ValueChanged(sender, e)
+Function txtJmmPartID_UserChange(sender, e)
 	if trim(controls("txtJmmPartID").value) = "" then 
 		exit function
 	else
@@ -37,3 +37,4 @@ Function txtJmmPartID_ValueChanged(sender, e)
 						
 	end if
 End Function
+
