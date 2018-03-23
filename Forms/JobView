@@ -14,6 +14,7 @@ Function cmdMarkOfficeOpsComplete_Click(sender, e)
 		call MarkZeroOpsComplete
 		call MarkOfficeOpsComplete
 		call MarkJunkMaterialsComplete
+		call MarkJobMaterialsAsFirm
 		
 		controls("chkJmpFirm").value = true
 		
@@ -22,6 +23,22 @@ Function cmdMarkOfficeOpsComplete_Click(sender, e)
 		msgbox "Success!"
 	end if
 End Function
+		
+sub MarkJobMaterialsAsFirm()
+	set rsJobMaterials = createobject("adodb.recordset")
+			rsJobMaterials.open _
+					"select * from JobMaterials where jmmJobID = " & app.Convert.StringToSql(trim(controls("txtJmpJobID").value)), _
+					Connection,adOpenStatic,adLockReadOnly,adCmdText
+	do while not rsJobMaterials.EOF
+		rsJobMaterials.fields("jmmFirm").value = true
+		rsJobMaterials.MoveNext()
+	loop
+	
+	rsJobMaterials.UpdateBatch()
+	rsJobMaterials.close
+	set rsJobMaterials = nothing
+		
+end sub
 		
 sub MarkOfficeOpsComplete()
 	dim rsJobOperations
@@ -67,7 +84,7 @@ sub MarkZeroOpsComplete()
 end sub
 	
 sub MarkJunkMaterialsComplete () 
-	'dim rsJobMaterials
+
 	set rsJobMaterials = createobject("adodb.recordset")
 	rsJobMaterials.Open	 " Select * " & _
 												" from 	JobMaterials " & _
@@ -84,7 +101,6 @@ sub MarkJunkMaterialsComplete ()
 	rsJobMaterials.close
 end sub
 	
-
 function chkJmpReleasedToFloor_UserChange(sender, e)
 	if controls("chkJmpReleasedToFloor").value = 0 then 
 		controls("txtujmpReleasedByEmpId").value = ""
