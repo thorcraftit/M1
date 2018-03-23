@@ -1,0 +1,49 @@
+
+Function txtJmaPartID_UserChange(sender, e)
+	UpdateJobAssemblyFields
+End Function
+
+
+Function txtJmaPartRevisionID_UserChange(sender, e)
+	UpdateJobAssemblyFields
+End Function
+
+sub UpdateJobAssemblyFields 
+	if trim(controls("txtJmaPartID").value) = "" then 
+		exit sub
+	else
+		set rsPartRevision = createobject("adodb.recordset")
+		rsPartRevision.open _
+					"	select uimrShowOnTraveler, uimrWorkCenterID, uimrBackflush " & _
+					"	from PartRevisions " & _
+					"	where imrPartID = " & app.convert.StringToSql(trim(controls("txtJmaPartID").value)) & _
+					"		and imrPartRevisionID = " & app.convert.StringToSql(trim(controls("txtJmaPartRevisionID").value)), _
+					Connection, adOpenStatic, adLockReadOnly, adCmdText					
+		
+		bFoundOperation = FALSE
+		
+		if not trim(rsPartRevision.fields("uimrWorkCenterID").value) = "" then
+			set rsJobOperation = createobject("adodb.recordset")
+					rsJobOperation.open _
+							"	select top 1 * " & _
+							"	from JobOperations " & _
+							"	where jmoJobid = " & app.convert.StringToSql(trim(controls("txtJmaJobID").value)) & _
+							"		and jmoJobAssemblyID = " & app.convert.StringToSql(trim(controls("txtJmaParentAssemblyID").value)) & _
+							"		and jmoWorkCenterID = "  & app.convert.StringToSql(rsPartRevision.fields("uimrWorkCenterID").value), _
+							Connection, adOpenStatic, adLockReadOnly, adCmdText
+			
+			if not rsJobOperation.EOF then
+				bFoundOperation = TRUE
+			end if
+			
+		end if
+			
+		if bFoundOperation then
+			controls("txtJmaOverlapOperationID").value = rsJobOperation.fields("jmoJobOperationID").value
+		else
+			controls("txtJmaOverlapOperationID").value = 0
+		end if
+	end if
+end sub
+
+
