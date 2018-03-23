@@ -10,31 +10,56 @@ End Function
 
 
 Function txtJmmPartRevisionID_UserChange(sender, e)
-	if trim(controls("txtJmmPartID").value) = "" then 
-		exit function
-	else
-		controls("uxujmmShowOnTravelerCheckBox").value = connection.execute _
-			( "	select uimrShowOnTraveler " & _
-				"	from PartRevisions " & _
-				"	where imrPartID = " & app.convert.StringToSql(trim(controls("txtJmmPartID").value)) & _
-				"		and imrPartRevisionID = " & app.convert.StringToSql(trim(controls("txtJmmPartRevisionID").value)) _
-			).fields("uimrShowOnTraveler").value
-						
-	end if
+	UpdateJobMaterialFields
 End Function
 
 
 Function txtJmmPartID_UserChange(sender, e)
-	if trim(controls("txtJmmPartID").value) = "" then 
-		exit function
-	else
-		controls("uxujmmShowOnTravelerCheckBox").value = connection.execute _
-			( "	select uimrShowOnTraveler " & _
-				"	from PartRevisions " & _
-				"	where imrPartID = " & app.convert.StringToSql(trim(controls("txtJmmPartID").value)) & _
-				"		and imrPartRevisionID = " & app.convert.StringToSql(trim(controls("txtJmmPartRevisionID").value)) _
-			).fields("uimrShowOnTraveler").value
-						
-	end if
+	UpdateJobMaterialFields
 End Function
+			
+sub UpdateJobMaterialFields 
+	if trim(controls("txtJmmPartID").value) = "" then 
+		exit sub
+	else
+		set rsPartRevision = createobject("adodb.recordset")
+		rsPartRevision.open _
+					"	select uimrShowOnTraveler, uimrWorkCenterID, uimrBackflush " & _
+					"	from PartRevisions " & _
+					"	where imrPartID = " & app.convert.StringToSql(trim(controls("txtJmmPartID").value)) & _
+					"		and imrPartRevisionID = " & app.convert.StringToSql(trim(controls("txtJmmPartRevisionID").value)), _
+					Connection, adOpenStatic, adLockReadOnly, adCmdText					
+		
+		controls("uxujmmShowOnTravelerCheckBox").value = rsPartRevision.fields("uimrShowOnTraveler").value
+		
+		bFoundOperation = FALSE
+		
+		if not trim(rsPartRevision.fields("uimrShowOnTraveler").value) = "" then
+			set rsJobOperation = createobject("adodb.recordset")
+					rsJobOperation.open _
+							"	select top 1 * " & _
+							"	from JobOperations " & _
+							"	where jmoJobid = " & app.convert.StringToSql(trim(controls("txtJmmJobID").value)) & _
+							"		and jmoJobAssemblyID = " & app.convert.StringToSql(trim(controls("txtJmmJobAssemblyID").value)) & _
+							"		and jmoWorkCenterID = "  & app.convert.StringToSql(rsPartRevision.fields("uimrWorkCenterID").value), _
+							Connection, adOpenStatic, adLockReadOnly, adCmdText
+			
+			if not rsJobOperation.EOF then
+				bFoundOperation = TRUE
+			end if
+			
+		end if
+			
+		if bFoundOperation then
+			controls("txtJmmRelatedJobOperationID").value = rsJobOperation.fields("jmoJobOperationID").value
+			controls("chkJmmBackflush").value = rsPartRevision.fields("uimrBackflush").value
+			controls("txtjmoProcessShortDescription").value = rsJobOperation.fields("jmoProcessShortDescription").value
+		else
+			controls("txtJmmRelatedJobOperationID").value = 0
+			controls("chkJmmBackflush").value = false
+			controls("txtjmoProcessShortDescription").value = ""
+		end if
+	end if
+end sub
+
 
