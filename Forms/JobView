@@ -1,15 +1,6 @@
-Function cmdMarkOfficeOpsComplete_Click(sender, e)
-	if trim(controls("txtJmpJobID").Value) = "" then
-		
-		msgbox	"No job selected", _
-						vbExclamation + vbOkOnly, "Error: No job"
-	
-	elseif trim(controls("txtJmpPartID").Value) <> "ROOM" and trim(controls("txtJmpPartID").Value) <> "REWORK" then
-		
-		msgbox	"Cannot mark operations complete on job " & trim(controls("txtjmpPartID").value) , _
-						vbExclamation + vbOkOnly, "Error: Job Type"
-	
-	else
+Function cmdPrepForRelease_Click(sender, e)
+
+	if ValidateJob(ErrorText) then
 		
 		call MarkZeroOpsComplete
 		call MarkOfficeOpsComplete
@@ -21,8 +12,43 @@ Function cmdMarkOfficeOpsComplete_Click(sender, e)
 		this.OnDataChanged(3)
 		
 		msgbox "Success!"
+		
+	else
+			msgbox ErrorText, _
+						vbExclamation + vbOkOnly, "Error: No job"
 	end if
 End Function
+		
+function cmdCleanupSchedule_Click(sender, e)
+	if ValidateJob(ErrorText) then
+		
+		call MarkZeroOpsComplete
+		call MarkOfficeOpsComplete
+		
+		this.OnDataChanged(3)
+		
+		msgbox "Success!"
+		
+	else
+			msgbox ErrorText, _
+						vbExclamation + vbOkOnly, "Error: No job"
+	end if
+
+end function
+		
+private function ValidateJob (ByRef ErrorText)
+	
+	if trim(controls("txtJmpJobID").Value) = "" then
+		ErrorText = "No job selected"
+		ValidateJob = false
+	elseif trim(controls("txtJmpPartID").Value) <> "ROOM" and trim(controls("txtJmpPartID").Value) <> "REWORK" then
+		ErrorText = "Cannot mark operations complete on job " & trim(controls("txtjmpPartID").value)
+		ValidateJob = false
+	else
+		ErrorText = ""
+		ValidateJob = true
+	end if
+end function
 		
 sub MarkJobMaterialsAsFirm()
 	set rsJobMaterials = createobject("adodb.recordset")
@@ -58,6 +84,7 @@ sub MarkOfficeOpsComplete()
 		
 	rsJobOperations.UpdateBatch()
 	rsJobOperations.close
+	set rsJobOperations = nothing
 	
 end sub
 	
@@ -80,6 +107,7 @@ sub MarkZeroOpsComplete()
 		
 	rsJobOperations.UpdateBatch()
 	rsJobOperations.close
+	set rsJobOperations = nothing
 	
 end sub
 	
@@ -99,6 +127,7 @@ sub MarkJunkMaterialsComplete ()
 		
 	rsJobMaterials.UpdateBatch()
 	rsJobMaterials.close
+	set rsJobMaterials = nothing
 end sub
 	
 function chkJmpReleasedToFloor_UserChange(sender, e)
@@ -107,5 +136,6 @@ function chkJmpReleasedToFloor_UserChange(sender, e)
 	else
 		controls("txtujmpReleasedByEmpId").value = App.Ax("Production").EmployeeID
 	end if
-end function
 
+End Function
+	
