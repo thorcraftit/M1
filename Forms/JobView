@@ -41,7 +41,9 @@ private function ValidateJob (ByRef ErrorText)
 	if trim(controls("txtJmpJobID").Value) = "" then
 		ErrorText = "No job selected"
 		ValidateJob = false
-	elseif trim(controls("txtJmpPartID").Value) <> "ROOM" and trim(controls("txtJmpPartID").Value) <> "REWORK" then
+	elseif trim(controls("txtJmpPartID").Value) <> "ROOM" _
+					and trim(controls("txtJmpPartID").Value) <> "REWORK" _
+					and trim(controls("txtJmpPartID").Value) <> "MISC" then
 		ErrorText = "Cannot mark operations complete on job " & trim(controls("txtjmpPartID").value)
 		ValidateJob = false
 	else
