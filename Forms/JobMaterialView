@@ -34,7 +34,8 @@ sub UpdateJobMaterialFields
 		
 		bFoundOperation = FALSE
 		
-		if not trim(rsPartRevision.fields("uimrShowOnTraveler").value) = "" then
+		if not trim(rsPartRevision.fields("uimrWorkCenterID").value) = "" then
+			
 			set rsJobOperation = createobject("adodb.recordset")
 					rsJobOperation.open _
 							"	select top 1 * " & _
@@ -61,5 +62,28 @@ sub UpdateJobMaterialFields
 		end if
 	end if
 end sub
+			
+Function M1DataControl_RecordChange(sender, e)
+	bFoundOperation = false
+	
+	if trim(controls("txtJmmRelatedJobOperationID").value) <> "" then
+		set rsJobOperation = createobject("adodb.recordset")
+				rsJobOperation.open  _
+					"	select top 1 * " & _
+					"	from JobOperations " & _
+					"	where jmoJobid = " & app.convert.StringToSql(trim(controls("txtJmmJobID").value)) & _
+					"		and jmoJobAssemblyID = " & app.convert.StringToSql(trim(controls("txtJmmJobAssemblyID").value)) & _
+					"		and jmoJobOperationID = "  & app.convert.StringToSql(trim(controls("txtJmmRelatedJobOperationID").value)), _
+					Connection, adOpenStatic, adLockReadOnly, adCmdText
 
-
+		if not rsJobOperation.EOF then  
+			bFoundOperation = true
+		end if
+	end if
+		
+	if bFoundOperation then 
+		controls("txtjmoProcessShortDescription").value = rsJobOperation.fields("jmoProcessShortDescription").value
+	else
+		controls("txtjmoProcessShortDescription").value = ""
+	end if
+End Function
