@@ -5,7 +5,7 @@ Function cmdPrepForRelease_Click(sender, e)
 		call MarkZeroOpsComplete
 		call MarkOfficeOpsComplete
 		call MarkJunkMaterialsComplete
-		call MarkJobMaterialsAsFirm
+		call ChangeJobMaterialsFirmValue (true)
 		
 		controls("chkJmpFirm").value = true
 		
@@ -24,6 +24,7 @@ function cmdCleanupSchedule_Click(sender, e)
 		
 		call MarkZeroOpsComplete
 		call MarkOfficeOpsComplete
+		call ChangeJobMaterialsFirmValue (false)
 		
 		this.OnDataChanged(3)
 		
@@ -52,13 +53,13 @@ private function ValidateJob (ByRef ErrorText)
 	end if
 end function
 		
-sub MarkJobMaterialsAsFirm()
+sub ChangeJobMaterialsFirmValue(bFirmValue)
 	set rsJobMaterials = createobject("adodb.recordset")
 			rsJobMaterials.open _
 					"select * from JobMaterials where jmmJobID = " & app.Convert.StringToSql(trim(controls("txtJmpJobID").value)), _
 					Connection,adOpenStatic,adLockReadOnly,adCmdText
 	do while not rsJobMaterials.EOF
-		rsJobMaterials.fields("jmmFirm").value = true
+		rsJobMaterials.fields("jmmFirm").value = bFirmValue
 		rsJobMaterials.MoveNext()
 	loop
 	
