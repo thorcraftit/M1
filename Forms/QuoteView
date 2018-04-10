@@ -154,7 +154,7 @@ Function cmdUpdateLead_Click(sender, e)
 						"INNER JOIN	QuoteQuantities  " & _
 						"			on	qmlQuoteID = qmqQuoteID " & _
 						"				and qmlQuoteLineID = qmqQuoteLineID " & _
-						"where	impPartClassID not in ('DISC','INSTA','DELIV') " & _
+						"where	impPartClassID <> 'DISC' " & _
 						"	and qmlQuoteID = " & App.convert.StringToSql(trim(controls("txtQmpQuoteID").value)), _
 						Connection,adOpenStatic,adLockReadOnly,adCmdText
 	
@@ -197,7 +197,7 @@ Function cmdUpdateLead_Click(sender, e)
 		exit function
 	end if
 
-	'save the new total to the lead.				
+	'save the new total to the lead line.				
 	rsLeadLines.fields("lolQuantity").value = cdbl(1)
 	rsLeadLines.fields("lolUnitSalePriceBase").value = QuoteTotal
 	rsLeadLines.fields("lolDiscountAmount").value = DiscountTotal
@@ -205,7 +205,21 @@ Function cmdUpdateLead_Click(sender, e)
 	rsLeadLines.fields("lolGrossAmount").value = QuoteTotal
 	rsLeadLines.fields("lolRevenueForecast").value = QuoteTotal - DiscountTotal
 	
-	rsLeadLines.UpdateBatch()			
+	'Save the total to the lead
+	rsLeads.fields("lopLeadTotal").value = rsLeadLines.fields("lolRevenueForecast").value
+	rsLeads.UpdateBatch()
+	rsLeads.close
+	set rsLeads = nothing
+			
+	rsLeadLines.UpdateBatch()
+	rsLeadLines.close
+	set rsLeadLines = nothing
+			
+	rsDiscountTotal.close
+	set rsDiscountTotal = nothing
+			
+	rsQuoteTotal.close
+	set rsQuoteTotal= nothing
 
 End Function
 		
