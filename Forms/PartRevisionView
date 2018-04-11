@@ -1,0 +1,113 @@
+'----------M1 Code----------
+
+Function this_initialize(sender, e)
+	Set rsuMaterials = CreateObject("ADODB.RecordSet")
+	rsuMaterials.Open _
+		"	SELECT * " & _
+		"	FROM   uMaterials " & _
+		"	WHERE  0 = 1", _
+		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	Controls("grdMaterials").SetGridRS rsuMaterials, _
+				"ucmMaterialID, ucmCabinetVisionID, ucmDescription," & _
+				"ucmUnitOfIssueID, ucmPartID, ucmPartRevisionID," & _
+				"ucmCreatedBy, ucmCreatedDate, ucmMaterialType"
+																									
+End Function
+
+Function M1DataControl_RecordChange(sender, e)
+	Set rsuMaterials = CreateObject("ADODB.RecordSet")
+	rsuMaterials.Open _
+		"	SELECT * " & _
+		"	FROM   uMaterials " & _
+		"	WHERE  ucmPartID = " & App.Convert.StringToSql(Controls("txtimrPartID").Value) & _
+		"	       AND ucmPartRevisionID = " & App.Convert.StringToSql(Controls("txtimrPartRevisionID").Value), _
+		Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	Controls("grdMaterials").RefreshRS rsuMaterials
+End Function
+
+Function cmdAddMaterial_Click(sender, e)
+		'Controls("srcMaterials").doclick
+	
+		If Trim(Controls("txtMaterialID").Value) <> "" then
+		If Not DoesMaterialAlreadyExist(Controls("txtMaterialID").Value) Then
+
+			Set rsuMaterialsGrid = Controls("grdMaterials").DataSource.Recordset
+			
+			Set rsuMaterials = CreateObject("ADODB.RecordSet")
+			rsuMaterials.Open _
+				"	SELECT * " & _
+				"	FROM   uMaterials " & _
+				"	WHERE  ucmMaterialID = " & App.Convert.StringToSql(Controls("txtMaterialID").Value), _
+				Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+			If Not rsuMaterials.EOF then
+		
+				rsuMaterialsGrid.AddNew
+				rsuMaterialsGrid.Fields("ucmMaterialID").Value = rsuMaterials.Fields("ucmMaterialID").Value
+				rsuMaterialsGrid.Fields("ucmDescription").Value = rsuMaterials.Fields("ucmDescription").Value
+				rsuMaterialsGrid.Fields("ucmPartID").Value = Controls("txtimrPartID").Value
+				rsuMaterialsGrid.Fields("ucmPartRevisionID").Value = Controls("txtimrPartRevisionID").Value
+				
+				Controls("grdMaterials").RefreshRS rsuMaterialsGrid
+				Controls("M1DataControl").MarkAsChanged
+			End If
+		End If
+	End if
+	Controls("txtMaterialID").Value = ""
+
+End Function
+			
+Function DoesMaterialAlreadyExist(MaterialID)
+
+	Set rsuMaterialsGrid = Controls("grdMaterials").DataSource.Recordset
+	found = false
+	do while not found and not rsuMaterialsGrid.EOF
+		'msgbox found & " " & rsuMaterialsgrid.fields("ucmMaterialID").value
+		if rsuMaterialsgrid.fields("ucmMaterialID").value = trim(MaterialID) then
+			found = true
+			exit do
+		else
+			rsuMaterialsGrid.MoveNext()
+		end if
+	loop
+				
+	If Not rsuMaterialsGrid.EOF Then
+		If Trim(rsuMaterialsGrid.Fields("ucmPartID").Value) = "" Then 
+			'rsuMaterialsGrid.Delete
+			DoesMaterialAlreadyExist = False 
+		Else
+			DoesMaterialAlreadyExist = True
+		End If
+	End If
+End Function
+
+Function cmdRemoveMaterial_Click(sender, e)
+
+	Set rsuMaterialsGrid = Controls("grdMaterials").DataSource.Recordset
+	rsuMaterialsGrid.Fields("ucmPartID").Value = ""
+	rsuMaterialsGrid.Fields("ucmPartRevisionID").Value = ""
+	
+	rsuMaterialsGrid.Filter = "ucmPartID <> ''"
+	Controls("grdMaterials").RefreshRS rsuMaterialsGrid
+	Controls("M1DataControl").MarkAsChanged
+End Function
+
+Function M1DataControl_SaveDataCompleted(sender, e)
+	
+	Set rsuMaterialsGrid = Controls("grdMaterials").DataSource.Recordset
+	
+	'rsuMaterialsGrid.Filter = ""
+	If Not rsuMaterialsGrid.EOF Then
+		rsuMaterialsGrid.MoveFirst
+	end if
+	
+	Do While Not rsuMaterialsGrid.EOF 
+		Connection.Execute _
+			"	UPDATE uMaterials " & _
+			"	SET    ucmPartID = " & App.Convert.StringToSql(rsuMaterialsGrid.Fields("ucmPartID").Value) & ", " & _
+			"	       ucmPartRevisionID = " & App.Convert.StringToSql(rsuMaterialsGrid.Fields("ucmPartRevisionID").Value) & _
+			"	WHERE  ucmMaterialID = " & App.Convert.StringToSql(rsuMaterialsGrid.Fields("ucmMaterialID").Value)
+		rsuMaterialsGrid.MoveNext()
+	loop
+End Function
