@@ -157,9 +157,10 @@ Function cmdScheduleAllJobs_Click(sender, e)
 			loop
 		end if
 	end if
-	
-	rsJobs.filter = ""
 				
+	rsJobs.filter = ""
+	rsJobs.ReQuery 'refresh RS since the above update may have modified some values
+						
 	i = 1
 	do while i <= 1 'this can be changed to 2 once we revamp how the installation pricing works
 									'currently the installation price is set with the op quantity, so the installation is a crazy amount, like 5000 hours.
