@@ -1,4 +1,4 @@
-private rsOrderLineInfo
+'private rsOrderLineInfo
 
 Function chkBuilderCredit_ValueChanged(sender, e)
 	If controls("chkBuilderCredit").value = false Then
@@ -98,12 +98,17 @@ Function M1DataControl_SaveDataCompleted(sender, e)
 		vbsSalesOrderTotals.UpdateSalesOrderPaintTotal controls("txtOmpSalesOrderID").Value
 	end if
 		
-	rsOrderLineInfo.UpdateBatch()
 End Function
 
 Function this_Initialize(sender, e)
 	includescript "vbsSalesOrderTotals"
 	includescript "vbsThorcraftTools"
+	
+	controls("optProductionScheduleDirection").ValueInt = 1
+	controls("optInstallScheduleDirection").ValueInt = 2
+	controls("optScheduleType").ValueInt = 1
+	controls("txtDeliveryDate").value = controls("txtOmpRequestedShipDate").value
+	controls("txtScheduleDate").value = controls("txtOmpRequestedShipDate").value
 	
 End Function
 
@@ -111,21 +116,286 @@ Function cmdMapShippingAddress_Click(sender, e)
 	call vbsThorcraftTools.ShowLocationOnMap (controls("txtOmpShipOrganizationID").Value, controls("txtOmpShipLocationID").Value)
 End Function
 
-function GetOrderLineInfo(OrderID) 
-	set rs = createobject("adodb.recordset")
-	rs.Open "	select * from	salesorderlines where omlSalesOrderID =  " & app.convert.StringToSql(OrderID), Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
-	set GetOrderLineInfo = rs
-end function
-
 Function txtOmpSalesOrderID_ValueChanged(sender, e)
-	Set rsOrderLineInfo = GetOrderLineInfo(controls("txtOmpSalesOrderID").value)
-	controls("grdOrderLines").RefreshRS rsOrderLineInfo
+	controls("optProductionScheduleDirection").ValueInt = 1
+	controls("optInstallScheduleDirection").ValueInt = 2
+	controls("optScheduleType").ValueInt = 1
+	
+	controls("txtDeliveryDate").value = controls("txtOmpRequestedShipDate").value
+	controls("txtScheduleDate").value = controls("txtOmpRequestedShipDate").value
 End Function
 
-Function grdOrderLines_CellChange(sender, e)
-	controls("M1DataControl").MarkAsChanged()
+Function cmdScheduleAllJobs_Click(sender, e)
+	JobMessages = array()
+	
+	if msgbox ( "All jobs on this order will be scheduled with a due date of " & vbnewline & _
+							controls("txtScheduleDate").value & vbnewline & _
+							"Would you like to continue? ", _
+								vbyesno + vbquestion) = vbno then
+		exit function
+	end if
+	
+	set rsJobs = createobject("adodb.recordset")
+			rsJobs.open "	select omjjobid, jmpPlanningComplete, jmpProductionDueDate, jmpReleasedToFloor, jmpFirm, impPartGroupID " & _
+									"	from SalesOrderJobLinks " & _
+									"	inner join jobs on omjjobid = jmpJobID " & _
+									"	inner join parts on jmpPartID = impPartID " & _
+									"	where jmpPartID <> " & app.Convert.StringToSql("OFFICE") & _
+									"		 and omjSalesOrderID = " & app.convert.StringToSql(controls("txtOmpSalesOrderID").value) & _
+									"		 and jmpClosed = 0 ", _
+									Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+
+	rsJobs.filter = "jmpPlanningComplete = 0"
+			
+	if not rsJobs.EOF then
+		if msgbox ("There are " & rsJobs.RecordCount & " jobs that are not " & _
+							"marked as Planning Complete. Should they be marked as Planning Complete?", _
+							vbyesno + vbquestion) = vbyes then
+			do while not rsJobs.EOF 
+				connection.execute " Update Jobs set jmpPlanningComplete = 1 where jmpJobID = " & app.Convert.StringToSql(rsJobs.fields("omjJobID").value)
+				rsJobs.MoveNext
+			loop
+		end if
+	end if
+	
+	rsJobs.filter = ""
+				
+	i = 1
+	do while i <= 1 'this can be changed to 2 once we revamp how the installation pricing works
+									'currently the installation price is set with the op quantity, so the installation is a crazy amount, like 5000 hours.
+									'obviously that won't schedule well, so we need to use the subcontract "estimated cost" fields to set the price
+									'of the installation, then use the "days" production standard so we can actually schedule the installation.
+		
+		rsJobs.Movefirst()	
+		
+		if i = 1 then
+			rsJobs.filter = "jmpPlanningComplete = 1 and impPartGroupID <> " & app.convert.StringToLinq("INSTA")
+			redim preserve JobMessages(ubound(JobMessages)+1)
+			JobMessages(ubound(JobMessages)) = cstr(rsJobs.RecordCount()) & " production jobs found and scheduled"
+			sJobIDs = ""	
+		else
+			rsJobs.filter = "jmpPlanningComplete = 1 and impPartGroupID = " & app.convert.StringToLinq("INSTA")
+			redim preserve JobMessages(ubound(JobMessages)+1)
+			JobMessages(ubound(JobMessages)) = cstr(rsJobs.RecordCount()) & " installation jobs found and scheduled"
+		end if
+		
+		do while not rsJobs.EOF
+			
+			call app.Ax("Job").UnscheduleJob(rsJobs.fields("omjJobID").value) 
+			
+			if rsJobs.fields("impPartGroupID").value = "INSTA" then
+				ScheduleDirection = controls("optInstallScheduleDirection").ValueInt
+			else
+				ScheduleDirection = controls("optProductionScheduleDirection").ValueInt
+				
+			end if
+					
+			if ScheduleDirection = 1 then 
+				'Backward scheduled
+				InitialDateType = 5 '1=QueueStart,2=SetupStart,3=ProductionStart,4=ProductionDue,5=MoveDue
+			else 
+				'forward scheduled
+				InitialDateType = 1 '1=QueueStart,2=SetupStart,3=ProductionStart,4=ProductionDue,5=MoveDue
+			end if
+			
+			if trim(controls("txtScheduleDate").value) = "" then
+				ScheduleDate = rsJobs.fields("jmpProductionDueDate").value
+			else
+				ScheduleDate = controls("txtScheduleDate").value
+			end if
+				
+			'clean up operations if it's not released to floor
+			if rsJobs.fields("jmpReleasedToFloor").value = 0 then
+				dim rsJobOperations
+				set rsJobOperations = createobject("adodb.recordset")
+				rsJobOperations.Open	"	Select	jmoJobID " & _
+															"					,jmoJobAssemblyID " & _
+															"					,jmoJobOperationID " & _
+															"					,jmoProcessID " & _
+															"					,jmoProductionComplete " & _
+															"					,jmoProductionStandard " & _
+															"					,jmoQueueTime " & _
+															"					,jmoMoveTime " & _
+															"	from		JobOperations " & _
+															"	where 	jmoJobID = " & App.Convert.StringToSql(rsJobs.fields("omjJobid").value) & _
+															"			and jmoProductionComplete = 0 ", _
+															Connection,adOpenStatic,adLockReadOnly,adCmdText
+				
+				'Mark office operations as PC
+				rsJobOperations.filter = "jmoProcessID in ('DRAFT', 'MRNG', 'UPDAT', 'NGNR')"
+				do while not rsJobOperations.EOF
+					rsJobOperations.fields("jmoProductionComplete").value = 1
+					rsJobOperations.MoveNext()
+				loop
+				
+				'remove move/queue time on operations with no production standard
+				rsJobOperations.filter = "jmoProductionStandard = 0"
+				do while not rsJobOperations.EOF
+					rsJobOperations.fields("jmoQueueTime").value = 0
+					rsJobOperations.fields("jmoMoveTime").value = 0
+					rsJobOperations.fields("jmoProductionComplete").value = 1
+					rsJobOperations.MoveNext()
+				loop
+					
+				rsJobOperations.UpdateBatch()
+				rsJobOperations.close
+				set rsJobOperations = nothing
+			end if
+				
+
+			call Forms.Ax("Jobs").ScheduleJob(_
+						rsJobs.fields("omjJobID").value, _
+						0, _
+						7, _
+						7, _
+						cbyte(ScheduleDirection), _
+						cbool(controls("chkIgnoreMachines").value), _
+						cbool(controls("chkIgnoreEmployees").value), _
+						cbyte(InitialDateType), _
+						cdate(ScheduleDate), _
+						0.0 )
+
+			if trim(sJobIDs) = "" then 
+				sJobIDs = sJobIDs & cstr(rsJobs.fields("omjJobID").value)
+			else
+				sJobIDs = sJobIDs & "," & cstr(rsJobs.fields("omjJobID").value)
+			end if
+			
+			if controls("optScheduleType").ValueInt = 1 then
+				'Pre-Engineering Scheduling
+				bReleasedToFloor = 0
+				sReleasedByEmpID = ""
+				dDate = ""			
+				bFirm = 0
+			else
+				'Post-Engineering Scheduling
+				bReleasedToFloor = 1
+				sReleasedByEmpID = App.Ax("Production").EmployeeID
+				dDate = date()
+				bFirm = 1
+			end if
+
+			'Set jmpFirm
+			connection.execute	"	Update Jobs " & _
+													"	set jmpFirm = " & app.convert.NumberToSql(bFirm) & _
+													"	where jmpJobid = " & app.convert.StringToSql(rsJobs.fields("omjJobID").value)
+			'Set jmmFirm
+			connection.execute	"	Update JobMaterials " & _
+													"	set jmmFirm = " & app.convert.NumberToSql(bFirm) & _
+													"	where jmmJobid = " & app.convert.StringToSql(rsJobs.fields("omjJobID").value)
+
+			'Set jmpReleasedToFloor
+			connection.execute	"	Update Jobs " & _
+													"	set jmpReleasedToFloor = " & app.convert.NumberToSql(bReleasedToFloor) & _
+													"		 ,ujmpReleasedByEmpID = " & app.Convert.StringToSql(sReleasedByEmpID) & _
+													"		 ,ujmpReleasedToFloorDate = " & app.convert.DateTimeToSql(dDate) & _
+													"	where jmpReleasedToFloor <> " & app.convert.NumberToSql(bReleasedToFloor) & _
+													"		 and jmpJobid = " & app.convert.StringToSql(rsJobs.fields("omjJobID").value)
+			rsJobs.MoveNext()
+		
+		loop
+				
+		i = i + 1
+	loop
+
+	if ubound(JobMessages) >= 0 then
+		msgbox Join(JobMessages, vbNewLine)
+	end if
+				
+	if controls("chkShowSchedulingBoard").value = true then	
+		call Forms.Ax("Jobs").ShowSchedulingBoard(sJobIDs)	
+	end if
+				
+	this.OnDataChanged(3)
+	
 End Function
 
-Function grdOrderLines_AfterSelectChange(sender, e)
-	controls("M1DataControl").MarkAsChanged()
+
+Function cmdSetStatusOnLines_Click(sender, e)
+	'validate
+	if connection.execute ( _
+					"	select 1 " & _
+					"	from uSalesOrderLineStatuses " & _
+					"	where ulsSalesOrderLineStatusesID = " & app.convert.StringToSql(trim(controls("txtLineStatus").value))).EOF then
+		msgbox "Line Status does not exist. Please choose a Line Status."
+		controls("txtLineStatus").value = ""
+		exit function
+	end if
+
+	set rsLines = createobject("adodb.recordset")
+			rsLines.open "select * from SalesOrderLines where omlSalesOrderID = " & App.convert.StringToSQL(controls("txtompSalesOrderID").value), Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	do while not rsLines.EOF 
+		rsLines.fields("uomlStatusID").value = trim(controls("txtLineStatus").value)
+		rslines.MoveNext()
+	loop
+		
+	rsLines.UpdateBatch()
+	rsLines.close
+	set rsLines = nothing
+			
+	controls("txtLineStatus").value = ""
+			
+	controls("uM1SchedulingGrid").OnDataChanged(1)
+
+End Function
+
+Function cmdForceAllDates_Click(sender, e)
+	
+	controls("txtOmpRequestedShipDate").value = controls("txtDeliveryDate").value
+	
+	'Force saving Sales Order Header
+	this.OnDataChanged(1)
+		
+	connection.execute _
+		"	Update SalesOrderDeliveries " & _
+		"	set omdDeliveryDate = " & App.Convert.DateToSql(controls("txtOmpRequestedShipDate").value) & _
+		"	where omdSalesOrderID = " & App.Convert.StringToSQL(controls("txtOmpSalesOrderID").value)
+	
+	set rsJobs = createobject("adodb.recordset")
+		rsJobs.open "select * from SalesOrderJobLinks inner join Jobs on omjJobID = jmpJobID where omjSalesOrderID = " & App.Convert.StringToSQL(controls("txtOmpSalesOrderID").value), Connection, adOpenStatic, adLockBatchOptimistic, adCmdText
+	
+	iSchedulingProblems = 0
+	
+	do while not rsJobs.EOF  
+
+		connection.execute _
+			"	Update Jobs " & _ 
+			"	set jmpProductionDueDate = " & App.Convert.DateToSql(controls("txtOmpRequestedShipDate").value) & _
+			"	where jmpJobID = " & App.Convert.StringToSQL(rsJobs.fields("omjJobID").value)
+		
+		if	(rsJobs.fields("jmpScheduledDueDate").value > rsJobs.fields("jmpProductionDueDate").value) or _
+					(datediff("d", rsJobs.fields("jmpScheduledDueDate").value, rsJobs.fields("jmpProductionDueDate").value) > 4) then
+			
+			iSchedulingProblems = iSchedulingProblems + 1
+		
+		end if
+		rsJobs.MoveNext()
+	loop
+	
+	rsJobs.Close
+	set rsJobs = nothing
+			
+	if iSchedulingProblems > 0 then 
+		if msgbox ( _
+				"There are " & cstr(iSchedulingProblems) & " jobs where either: " & vbnewline & _
+				"The Production Due Date is AFTER the Delivery Date. " & vbnewline & _
+				"OR " & vbnewline & _
+				"The Production Due Date is more than 5 days BEFORE the Delivery Date." & vbnewline & vbnewline & _
+				"Would you like to reschedule all jobs on this order using the new Delivery Date?", _
+									vbyesno + vbquestion) = vbyes then
+			
+				call cmdScheduleAllJobs_Click (sender, e)
+			
+		end if 
+		
+	end if
+			
+	controls("txtScheduleDate").value = controls("txtDeliveryDate").Value
+	
+	this.OnDataChanged(3)
+	
+End Function
+
+Function txtDeliveryDate_UserChange(sender, e)
+	controls("txtScheduleDate").value = controls("txtDeliveryDate").value	
 End Function
