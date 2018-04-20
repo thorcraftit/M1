@@ -1,5 +1,3 @@
-'private rsOrderLineInfo
-
 Function chkBuilderCredit_ValueChanged(sender, e)
 	If controls("chkBuilderCredit").value = false Then
 		controls("txtBuilderCreditID").value = ""
@@ -104,9 +102,6 @@ Function this_Initialize(sender, e)
 	includescript "vbsSalesOrderTotals"
 	includescript "vbsThorcraftTools"
 	
-	controls("optProductionScheduleDirection").ValueInt = 1
-	controls("optInstallScheduleDirection").ValueInt = 2
-	controls("optScheduleType").ValueInt = 1
 	controls("txtDeliveryDate").value = controls("txtOmpRequestedShipDate").value
 	controls("txtScheduleDate").value = controls("txtOmpRequestedShipDate").value
 	
@@ -114,15 +109,13 @@ End Function
 
 Function cmdMapShippingAddress_Click(sender, e)
 	call vbsThorcraftTools.ShowLocationOnMap (controls("txtOmpShipOrganizationID").Value, controls("txtOmpShipLocationID").Value)
+	
 End Function
 
 Function txtOmpSalesOrderID_ValueChanged(sender, e)
-	controls("optProductionScheduleDirection").ValueInt = 1
-	controls("optInstallScheduleDirection").ValueInt = 2
-	controls("optScheduleType").ValueInt = 1
-	
 	controls("txtDeliveryDate").value = controls("txtOmpRequestedShipDate").value
 	controls("txtScheduleDate").value = controls("txtOmpRequestedShipDate").value
+	
 End Function
 
 Function cmdScheduleAllJobs_Click(sender, e)
@@ -291,7 +284,7 @@ Function cmdScheduleAllJobs_Click(sender, e)
 													"		 ,ujmpReleasedByEmpID = " & app.Convert.StringToSql(sReleasedByEmpID) & _
 													"		 ,ujmpReleasedToFloorDate = " & app.convert.DateTimeToSql(dDate) & _
 													"	where jmpReleasedToFloor <> " & app.convert.NumberToSql(bReleasedToFloor) & _
-													"		 and jmpJobid = " & app.convert.StringToSql(rsJobs.fields("omjJobID").value)
+													"		and jmpJobid = " & app.convert.StringToSql(rsJobs.fields("omjJobID").value)
 			rsJobs.MoveNext()
 		
 		loop
@@ -386,15 +379,14 @@ Function cmdForceAllDates_Click(sender, e)
 									vbyesno + vbquestion) = vbyes then
 			
 				call cmdScheduleAllJobs_Click (sender, e)
-			
+		else
+			this.OnDataChanged(3)
 		end if 
 		
 	end if
 			
 	controls("txtScheduleDate").value = controls("txtDeliveryDate").Value
-	
-	this.OnDataChanged(3)
-	
+
 End Function
 
 Function txtDeliveryDate_UserChange(sender, e)
