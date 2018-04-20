@@ -104,6 +104,9 @@ Function this_Initialize(sender, e)
 	
 	controls("txtDeliveryDate").value = controls("txtOmpRequestedShipDate").value
 	controls("txtScheduleDate").value = controls("txtOmpRequestedShipDate").value
+	controls("optScheduleType").ValueInt = 1
+	controls("optProductionScheduleDirection").ValueInt = 1
+	controls("optInstallScheduleDirection").ValueInt = 2
 	
 End Function
 
