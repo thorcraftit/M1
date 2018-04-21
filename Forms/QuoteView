@@ -39,6 +39,10 @@ Function cmdImportRooms_Click(sender, e)
 			end if
 				
 			vbsCabinetVisionByRoomImport.CloseDatabases
+			controls("txtQmpQuoteDate").value = date()
+			controls("txtQmpDueDate").value = date()
+			controls("txtQmpExpirationDate").value = dateadd("d", date(), cint(app.props("QM").fields("xapQMExpirationDays").value))	
+			
 			this.OnDataChanged(3)
 				
 		End If
@@ -222,4 +226,3 @@ Function cmdUpdateLead_Click(sender, e)
 	set rsQuoteTotal= nothing
 
 End Function
-		
